@@ -43,6 +43,7 @@ function build_externals()
      print("calling externals")
      check_external(raylib_folder, raylib_version, "https://github.com/raysan5/raylib/archive/refs/tags/")
      check_external(raygui_folder, raygui_version, "https://github.com/raysan5/raygui/archive/refs/tags/")
+     check_external("premake-ecc-master", "master", "https://github.com/MattBystrin/premake-ecc/archive/refs/heads/")
 end
 
 function platform_defines()
@@ -99,6 +100,8 @@ raygui_version = "4.0"
 raygui_folder = "raygui-" .. raygui_version
 raygui_dir = "external/" .. raygui_folder
 
+build_externals()
+require "external/premake-ecc-master/ecc"
 
 workspaceName = 'MyGame'
 baseName = path.getbasename(path.getdirectory(os.getcwd()));
@@ -140,10 +143,6 @@ workspace (workspaceName)
     filter {}
 
     targetdir "bin/%{cfg.buildcfg}/"
-
-if (downloadRaylib) then
-    build_externals()
-	end
 
     startproject(workspaceName)
 
