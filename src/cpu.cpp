@@ -4,29 +4,45 @@
 #include "utils.h"
 #include "cpu.h"
 
+void loadRom(RomImageT * const rom, const char * const filename, int entrypoint)
+{
+    rom->contents = LoadFileData(filename, &(rom->size));
+    rom->contentFlags = (uint8_t *)MemAlloc(rom->size);
+    rom->entrypoint = entrypoint;
+}
 
-void dumpMemory(uint8_t *src, const int size)
+void unloadRom(RomImageT * const rom)
+{
+    UnloadFileData(rom->contents);
+    MemFree(rom->contentFlags);
+    rom->size = 0;
+}
+
+void dumpMemory(const uint8_t * const src, const int size)
 {
     for(int offset = 0; offset < size; offset += 0x10) {
         printf("0x%04x: ", offset);
         for(int index = 0; index < 16; index++) {
-            printf("%02x ", src[offset+index]);
+            if( index == 8 ) { printf(": "); }
+            printf("%02X ", src[offset+index]);
         }
         printf("\n");
     }
 }
 
-void disassemble(uint8_t *src, const int size)
+//void preprocessCode()
+
+void disassembleRom(RomImageT * const rom)
 {
     char buffer[32];
     int bytesPerInst;
 
-    for(int offset = 0; offset < size; ) {
-        printf("0x%04x: ", offset);
-        bytesPerInst = disassembleInstruction(src, offset, buffer);
+    for(int offset = 0; offset < rom->size; ) {
+        printf("0x%04X: ", offset);
+        bytesPerInst = disassembleInstruction(rom, offset, buffer);
         for(int index = 0; index < 3; index++) {
             if (index < bytesPerInst) {
-                printf("%02x ", src[offset+index]);
+                printf("%02X ", rom->contents[offset+index]);
             } else {
                 printf("   ");
             }
@@ -110,13 +126,16 @@ const char * const condDecode[] = {
 
 // buffer parameter must be large enough!!!
 // returns number of bytes consumed
-int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
+int disassembleInstruction(RomImageT * const rom, const int offset, char * const buffer)
 {
+    const uint8_t *memory = rom->contents;
     uint8_t instruction = memory[offset];
     char *buff = buffer;
     buff[0]='\0';
     // most instructions are only 1 byte
     int consumed = 1;
+    // most instructions are valid
+    bool valid = true;
 
     // Pull the most commonly referenced fields out of the instruction
     const uint8_t block = INST_BLOCK_EXTRACT(instruction);
@@ -127,6 +146,11 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
     const uint8_t cond  = INST_COND_EXTRACT(instruction);
     const uint8_t op_a  = INST_R8_A_EXTRACT(instruction);
     const uint8_t op_b  = INST_R8_B_EXTRACT(instruction);
+
+    uint8_t imm8u;
+    uint16_t addr;
+    int8_t imm8s;
+    int16_t imm16s;
 
     switch( block ) {
     case INST_BLOCK0:
@@ -144,14 +168,19 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                 buff = buff + sprintf(buff, "STOP");
                 break;
             case 3:
-                buff = buff + sprintf(buff, "JR   0x%04X", MEM_IMM8_OFFSET_TO_ADDR(memory,offset));
+                addr = MEM_IMM8_OFFSET_TO_ADDR(memory,offset);
+                buff = buff + sprintf(buff, "JR   0x%04X", addr);
+                ROM_SET_JUMPDEST(rom, addr);
+                ROM_SET_ENDCODE(rom, offset);
                 consumed = 2;
                 break;
             case 4:
             case 5:
             case 6:
             case 7:
-                buff = buff + sprintf(buff, "JR   %s, 0x%04X", condDecode[cond], MEM_IMM8_OFFSET_TO_ADDR(memory,offset));
+                addr = MEM_IMM8_OFFSET_TO_ADDR(memory,offset);
+                buff = buff + sprintf(buff, "JR   %s, 0x%04X", condDecode[cond], addr);
+                ROM_SET_JUMPDEST(rom, addr);
                 consumed = 2;
             }
             break;
@@ -241,6 +270,7 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                 case 2:
                 case 3:
                     buff = buff + sprintf(buff, "RET  %s", condDecode[cond]);
+                    // not and endcode since return is conditional
                     break;
                 case 4:
                     buff = buff + sprintf(buff, "LDH  [0x%04X], A", MEM_IMM8_H_TO_ADDR(memory, offset));
@@ -272,12 +302,16 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                     break;
                 case 1:
                     buff = buff + sprintf(buff, "RET");
+                    ROM_SET_ENDCODE(rom, offset);
                     break;
                 case 3:
                     buff = buff + sprintf(buff, "RETI");
+                    ROM_SET_ENDCODE(rom, offset);
                     break;
                 case 5:
                     buff = buff + sprintf(buff, "JP   HL");
+                    // can't determine jump dest address unless running code
+                    ROM_SET_ENDCODE(rom, offset);
                     break;
                 case 7:
                     buff = buff + sprintf(buff, "LD   SP, HL");
@@ -290,7 +324,9 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                 case 1:
                 case 2:
                 case 3:
-                    buff = buff + sprintf(buff, "JP   %s, 0x%04X", condDecode[cond], MEM_IMM16_EXTRACT(memory, offset));
+                    addr = MEM_IMM16_EXTRACT(memory, offset);
+                    buff = buff + sprintf(buff, "JP   %s, 0x%04X", condDecode[cond], addr);
+                    ROM_SET_JUMPDEST(rom, addr);
                     consumed = 3;
                     break;
                 case 4:
@@ -312,7 +348,10 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
             case 3:
                 switch( op_a ) {
                 case 0:
-                    buff = buff + sprintf(buff, "JP   0x%04X", MEM_IMM16_EXTRACT(memory, offset));
+                    addr = MEM_IMM16_EXTRACT(memory, offset);
+                    buff = buff + sprintf(buff, "JP   0x%04X", addr);
+                    ROM_SET_JUMPDEST(rom, addr);
+                    ROM_SET_ENDCODE(rom, offset);
                     consumed = 3;
                     break;
                 case 1:  // PREFIX OPCODE HANDLED ABOVE, fall through to invalid here
@@ -321,6 +360,7 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                 case 4:
                 case 5:
                     buff = buff + sprintf(buff, "INVALID");
+                    valid = false;
                     break;
                 case 6:
                     buff = buff + sprintf(buff, "DI");
@@ -332,10 +372,13 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                 break;
             case 4:
                 if( op_a <= 3 ) {
-                    buff = buff + sprintf(buff, "CALL %s, 0x%04X", condDecode[cond], MEM_IMM16_EXTRACT(memory, offset));
+                    addr = MEM_IMM16_EXTRACT(memory, offset);
+                    buff = buff + sprintf(buff, "CALL %s, 0x%04X", condDecode[cond], addr);
+                    ROM_SET_JUMPDEST(rom, addr);
                     consumed = 3;
                 } else {
                     buff = buff + sprintf(buff, "INVALID");
+                    valid = false;
                 }
                 break;
             case 5:
@@ -347,13 +390,16 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                     buff = buff + sprintf(buff, "PUSH %s", r16StkDecode[r16]);
                     break;
                 case 1:
-                    buff = buff + sprintf(buff, "CALL 0x%04X", MEM_IMM16_EXTRACT(memory, offset));
+                    addr = MEM_IMM16_EXTRACT(memory, offset);
+                    buff = buff + sprintf(buff, "CALL 0x%04X", addr);
+                    ROM_SET_JUMPDEST(rom, addr);
                     consumed = 3;
                     break;
                 case 3:
                 case 5:
                 case 7:
                     buff = buff + sprintf(buff, "INVALID");
+                    valid = false;
                     break;
                 }
                 break;
@@ -363,13 +409,26 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                 consumed = 2;
                 break;
             case 7:
-                buff = buff + sprintf(buff, "RST 0x%02X", INST_RST_TGT3_EXTRACT(instruction));
+                addr = INST_RST_TGT3_EXTRACT(instruction) * 8;
+                buff = buff + sprintf(buff, "RST 0x%02X", addr);
+                ROM_SET_JUMPDEST(rom, addr);
                 break;
             }
         }
         break;
     }
 
+    if ( valid ) {
+        ROM_SET_CONTENTTYPE(rom, offset, ROM_CONTENT_OPCODE);
+        if( 2 == consumed ) {
+            ROM_SET_CONTENTTYPE(rom, offset+1, ROM_CONTENT_IMM8);
+        } else if ( 3 == consumed ) {
+            ROM_SET_CONTENTTYPE(rom, offset+1, ROM_CONTENT_IMM16L);
+            ROM_SET_CONTENTTYPE(rom, offset+2, ROM_CONTENT_IMM16H);
+        }
+    } else {
+        ROM_SET_CONTENTTYPE(rom, offset, ROM_CONTENT_INVALID);
+    }
 
     return consumed;
 }

@@ -11,6 +11,7 @@ typedef struct {
     int size;
     uint8_t *contents;
     uint8_t *contentFlags;
+    int entrypoint;
 } RomImageT;
 
 #define ROM_CONTENTTYPE_MASK    (0x07)
@@ -37,11 +38,13 @@ typedef struct {
 #define ROM_SET_ENDCODE(rom, offset)            do { rom->contentFlags[offset] = (rom->contentFlags[offset] | ROM_ENDCODE_MASK); } while(0)
 
 
+void loadRom(RomImageT * const rom, const char * const filename, int entrypoint);
+void unloadRom(RomImageT * const rom);
+void disassembleRom(RomImageT * const rom);
 
-void dumpMemory(uint8_t *src, const int size);
-void disassemble(uint8_t *src, const int size);
+void dumpMemory(const uint8_t * const src, const int size);
 
-int disassembleInstruction(uint8_t *memory, const int offset, char *buffer);
+int disassembleInstruction(RomImageT * const rom, const int offset, char *buffer);
 
 
 

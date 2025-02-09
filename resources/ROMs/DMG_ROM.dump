@@ -1,183 +1,183 @@
 Defaulting to Boot ROM
 INFO: FILEIO: [ROMs/DMG_ROM.bin] File loaded successfully
-0x0000: 31 fe ff af 21 ff 9f 32 cb 7c 20 fb 21 26 ff 0e 
-0x0010: 11 3e 80 32 e2 0c 3e f3 e2 32 3e 77 77 3e fc e0 
-0x0020: 47 11 04 01 21 10 80 1a cd 95 00 cd 96 00 13 7b 
-0x0030: fe 34 20 f3 11 d8 00 06 08 1a 13 22 23 05 20 f9 
-0x0040: 3e 19 ea 10 99 21 2f 99 0e 0c 3d 28 08 32 0d 20 
-0x0050: f9 2e 0f 18 f3 67 3e 64 57 e0 42 3e 91 e0 40 04 
-0x0060: 1e 02 0e 0c f0 44 fe 90 20 fa 0d 20 f7 1d 20 f2 
-0x0070: 0e 13 24 7c 1e 83 fe 62 28 06 1e c1 fe 64 20 06 
-0x0080: 7b e2 0c 3e 87 e2 f0 42 90 e0 42 15 20 d2 05 20 
-0x0090: 4f 16 20 18 cb 4f 06 04 c5 cb 11 17 c1 cb 11 17 
-0x00a0: 05 20 f5 22 23 22 23 c9 ce ed 66 66 cc 0d 00 0b 
-0x00b0: 03 73 00 83 00 0c 00 0d 00 08 11 1f 88 89 00 0e 
-0x00c0: dc cc 6e e6 dd dd d9 99 bb bb 67 63 6e 0e ec cc 
-0x00d0: dd dc 99 9f bb b9 33 3e 3c 42 b9 a5 b9 a5 42 3c 
-0x00e0: 21 04 01 11 a8 00 1a 13 be 20 fe 23 7d fe 34 20 
-0x00f0: f5 06 19 78 86 23 05 20 fb 86 20 fe 3e 01 e0 50 
-0x0000: 31 fe ff |  LD   SP, 0xFFFE
-0x0003: af       |  XOR  A, A
-0x0004: 21 ff 9f |  LD   HL, 0x9FFF
+0x0000: 31 FE FF AF 21 FF 9F 32 : CB 7C 20 FB 21 26 FF 0E 
+0x0010: 11 3E 80 32 E2 0C 3E F3 : E2 32 3E 77 77 3E FC E0 
+0x0020: 47 11 04 01 21 10 80 1A : CD 95 00 CD 96 00 13 7B 
+0x0030: FE 34 20 F3 11 D8 00 06 : 08 1A 13 22 23 05 20 F9 
+0x0040: 3E 19 EA 10 99 21 2F 99 : 0E 0C 3D 28 08 32 0D 20 
+0x0050: F9 2E 0F 18 F3 67 3E 64 : 57 E0 42 3E 91 E0 40 04 
+0x0060: 1E 02 0E 0C F0 44 FE 90 : 20 FA 0D 20 F7 1D 20 F2 
+0x0070: 0E 13 24 7C 1E 83 FE 62 : 28 06 1E C1 FE 64 20 06 
+0x0080: 7B E2 0C 3E 87 E2 F0 42 : 90 E0 42 15 20 D2 05 20 
+0x0090: 4F 16 20 18 CB 4F 06 04 : C5 CB 11 17 C1 CB 11 17 
+0x00a0: 05 20 F5 22 23 22 23 C9 : CE ED 66 66 CC 0D 00 0B 
+0x00b0: 03 73 00 83 00 0C 00 0D : 00 08 11 1F 88 89 00 0E 
+0x00c0: DC CC 6E E6 DD DD D9 99 : BB BB 67 63 6E 0E EC CC 
+0x00d0: DD DC 99 9F BB B9 33 3E : 3C 42 B9 A5 B9 A5 42 3C 
+0x00e0: 21 04 01 11 A8 00 1A 13 : BE 20 FE 23 7D FE 34 20 
+0x00f0: F5 06 19 78 86 23 05 20 : FB 86 20 FE 3E 01 E0 50 
+0x0000: 31 FE FF |  LD   SP, 0xFFFE
+0x0003: AF       |  XOR  A, A
+0x0004: 21 FF 9F |  LD   HL, 0x9FFF
 0x0007: 32       |  LD   [HL-], A
-0x0008: cb 7c    |  BIT 7, H
-0x000a: 20 fb    |  JR   NZ, 0x0007
-0x000c: 21 26 ff |  LD   HL, 0xFF26
-0x000f: 0e 11    |  LD   C, 0x11
-0x0011: 3e 80    |  LD   A, 0x80
+0x0008: CB 7C    |  BIT 7, H
+0x000A: 20 FB    |  JR   NZ, 0x0007
+0x000C: 21 26 FF |  LD   HL, 0xFF26
+0x000F: 0E 11    |  LD   C, 0x11
+0x0011: 3E 80    |  LD   A, 0x80
 0x0013: 32       |  LD   [HL-], A
-0x0014: e2       |  LDH  [0xFF00+C], A
-0x0015: 0c       |  INC  C
-0x0016: 3e f3    |  LD   A, 0xF3
-0x0018: e2       |  LDH  [0xFF00+C], A
+0x0014: E2       |  LDH  [0xFF00+C], A
+0x0015: 0C       |  INC  C
+0x0016: 3E F3    |  LD   A, 0xF3
+0x0018: E2       |  LDH  [0xFF00+C], A
 0x0019: 32       |  LD   [HL-], A
-0x001a: 3e 77    |  LD   A, 0x77
-0x001c: 77       |  LD   [HL], A
-0x001d: 3e fc    |  LD   A, 0xFC
-0x001f: e0 47    |  LDH  [0xFF47], A
+0x001A: 3E 77    |  LD   A, 0x77
+0x001C: 77       |  LD   [HL], A
+0x001D: 3E FC    |  LD   A, 0xFC
+0x001F: E0 47    |  LDH  [0xFF47], A
 0x0021: 11 04 01 |  LD   DE, 0x0104
 0x0024: 21 10 80 |  LD   HL, 0x8010
-0x0027: 1a       |  LD   A, [DE]
-0x0028: cd 95 00 |  CALL 0x0095
-0x002b: cd 96 00 |  CALL 0x0096
-0x002e: 13       |  INC  DE
-0x002f: 7b       |  LD   A, E
-0x0030: fe 34    |  CP   A, 0x34
-0x0032: 20 f3    |  JR   NZ, 0x0027
-0x0034: 11 d8 00 |  LD   DE, 0x00D8
+0x0027: 1A       |  LD   A, [DE]
+0x0028: CD 95 00 |  CALL 0x0095
+0x002B: CD 96 00 |  CALL 0x0096
+0x002E: 13       |  INC  DE
+0x002F: 7B       |  LD   A, E
+0x0030: FE 34    |  CP   A, 0x34
+0x0032: 20 F3    |  JR   NZ, 0x0027
+0x0034: 11 D8 00 |  LD   DE, 0x00D8
 0x0037: 06 08    |  LD   B, 0x08
-0x0039: 1a       |  LD   A, [DE]
-0x003a: 13       |  INC  DE
-0x003b: 22       |  LD   [HL+], A
-0x003c: 23       |  INC  HL
-0x003d: 05       |  DEC B
-0x003e: 20 f9    |  JR   NZ, 0x0039
-0x0040: 3e 19    |  LD   A, 0x19
-0x0042: ea 10 99 |  LD   [0x9910], A
-0x0045: 21 2f 99 |  LD   HL, 0x992F
-0x0048: 0e 0c    |  LD   C, 0x0C
-0x004a: 3d       |  DEC A
-0x004b: 28 08    |  JR   Z, 0x0055
-0x004d: 32       |  LD   [HL-], A
-0x004e: 0d       |  DEC C
-0x004f: 20 f9    |  JR   NZ, 0x004A
-0x0051: 2e 0f    |  LD   L, 0x0F
-0x0053: 18 f3    |  JR   0x0048
+0x0039: 1A       |  LD   A, [DE]
+0x003A: 13       |  INC  DE
+0x003B: 22       |  LD   [HL+], A
+0x003C: 23       |  INC  HL
+0x003D: 05       |  DEC B
+0x003E: 20 F9    |  JR   NZ, 0x0039
+0x0040: 3E 19    |  LD   A, 0x19
+0x0042: EA 10 99 |  LD   [0x9910], A
+0x0045: 21 2F 99 |  LD   HL, 0x992F
+0x0048: 0E 0C    |  LD   C, 0x0C
+0x004A: 3D       |  DEC A
+0x004B: 28 08    |  JR   Z, 0x0055
+0x004D: 32       |  LD   [HL-], A
+0x004E: 0D       |  DEC C
+0x004F: 20 F9    |  JR   NZ, 0x004A
+0x0051: 2E 0F    |  LD   L, 0x0F
+0x0053: 18 F3    |  JR   0x0048
 0x0055: 67       |  LD   H, A
-0x0056: 3e 64    |  LD   A, 0x64
+0x0056: 3E 64    |  LD   A, 0x64
 0x0058: 57       |  LD   D, A
-0x0059: e0 42    |  LDH  [0xFF42], A
-0x005b: 3e 91    |  LD   A, 0x91
-0x005d: e0 40    |  LDH  [0xFF40], A
-0x005f: 04       |  INC  B
-0x0060: 1e 02    |  LD   E, 0x02
-0x0062: 0e 0c    |  LD   C, 0x0C
-0x0064: f0 44    |  LDH  A, [0xFF44]
-0x0066: fe 90    |  CP   A, 0x90
-0x0068: 20 fa    |  JR   NZ, 0x0064
-0x006a: 0d       |  DEC C
-0x006b: 20 f7    |  JR   NZ, 0x0064
-0x006d: 1d       |  DEC E
-0x006e: 20 f2    |  JR   NZ, 0x0062
-0x0070: 0e 13    |  LD   C, 0x13
+0x0059: E0 42    |  LDH  [0xFF42], A
+0x005B: 3E 91    |  LD   A, 0x91
+0x005D: E0 40    |  LDH  [0xFF40], A
+0x005F: 04       |  INC  B
+0x0060: 1E 02    |  LD   E, 0x02
+0x0062: 0E 0C    |  LD   C, 0x0C
+0x0064: F0 44    |  LDH  A, [0xFF44]
+0x0066: FE 90    |  CP   A, 0x90
+0x0068: 20 FA    |  JR   NZ, 0x0064
+0x006A: 0D       |  DEC C
+0x006B: 20 F7    |  JR   NZ, 0x0064
+0x006D: 1D       |  DEC E
+0x006E: 20 F2    |  JR   NZ, 0x0062
+0x0070: 0E 13    |  LD   C, 0x13
 0x0072: 24       |  INC  H
-0x0073: 7c       |  LD   A, H
-0x0074: 1e 83    |  LD   E, 0x83
-0x0076: fe 62    |  CP   A, 0x62
+0x0073: 7C       |  LD   A, H
+0x0074: 1E 83    |  LD   E, 0x83
+0x0076: FE 62    |  CP   A, 0x62
 0x0078: 28 06    |  JR   Z, 0x0080
-0x007a: 1e c1    |  LD   E, 0xC1
-0x007c: fe 64    |  CP   A, 0x64
-0x007e: 20 06    |  JR   NZ, 0x0086
-0x0080: 7b       |  LD   A, E
-0x0081: e2       |  LDH  [0xFF00+C], A
-0x0082: 0c       |  INC  C
-0x0083: 3e 87    |  LD   A, 0x87
-0x0085: e2       |  LDH  [0xFF00+C], A
-0x0086: f0 42    |  LDH  A, [0xFF42]
+0x007A: 1E C1    |  LD   E, 0xC1
+0x007C: FE 64    |  CP   A, 0x64
+0x007E: 20 06    |  JR   NZ, 0x0086
+0x0080: 7B       |  LD   A, E
+0x0081: E2       |  LDH  [0xFF00+C], A
+0x0082: 0C       |  INC  C
+0x0083: 3E 87    |  LD   A, 0x87
+0x0085: E2       |  LDH  [0xFF00+C], A
+0x0086: F0 42    |  LDH  A, [0xFF42]
 0x0088: 90       |  SUB  A, B
-0x0089: e0 42    |  LDH  [0xFF42], A
-0x008b: 15       |  DEC D
-0x008c: 20 d2    |  JR   NZ, 0x0060
-0x008e: 05       |  DEC B
-0x008f: 20 4f    |  JR   NZ, 0x00E0
+0x0089: E0 42    |  LDH  [0xFF42], A
+0x008B: 15       |  DEC D
+0x008C: 20 D2    |  JR   NZ, 0x0060
+0x008E: 05       |  DEC B
+0x008F: 20 4F    |  JR   NZ, 0x00E0
 0x0091: 16 20    |  LD   D, 0x20
-0x0093: 18 cb    |  JR   0x0060
-0x0095: 4f       |  LD   C, A
+0x0093: 18 CB    |  JR   0x0060
+0x0095: 4F       |  LD   C, A
 0x0096: 06 04    |  LD   B, 0x04
-0x0098: c5       |  PUSH BC
-0x0099: cb 11    |  RL   C
-0x009b: 17       |  RLA 
-0x009c: c1       |  POP  BC
-0x009d: cb 11    |  RL   C
-0x009f: 17       |  RLA 
-0x00a0: 05       |  DEC B
-0x00a1: 20 f5    |  JR   NZ, 0x0098
-0x00a3: 22       |  LD   [HL+], A
-0x00a4: 23       |  INC  HL
-0x00a5: 22       |  LD   [HL+], A
-0x00a6: 23       |  INC  HL
-0x00a7: c9       |  RET
-0x00a8: ce ed    |  ADC  A, 0xED
-0x00aa: 66       |  LD   H, [HL]
-0x00ab: 66       |  LD   H, [HL]
-0x00ac: cc 0d 00 |  CALL Z, 0x000D
-0x00af: 0b       |  DEC  BC
-0x00b0: 03       |  INC  BC
-0x00b1: 73       |  LD   [HL], E
-0x00b2: 00       |  NOP
-0x00b3: 83       |  ADD  A, E
-0x00b4: 00       |  NOP
-0x00b5: 0c       |  INC  C
-0x00b6: 00       |  NOP
-0x00b7: 0d       |  DEC C
-0x00b8: 00       |  NOP
-0x00b9: 08 11 1f |  LD   [0x1F11], SP
-0x00bc: 88       |  ADC  A, B
-0x00bd: 89       |  ADC  A, C
-0x00be: 00       |  NOP
-0x00bf: 0e dc    |  LD   C, 0xDC
-0x00c1: cc 6e e6 |  CALL Z, 0xE66E
-0x00c4: dd       |  INVALID
-0x00c5: dd       |  INVALID
-0x00c6: d9       |  RETI
-0x00c7: 99       |  SBC  A, C
-0x00c8: bb       |  CP   A, E
-0x00c9: bb       |  CP   A, E
-0x00ca: 67       |  LD   H, A
-0x00cb: 63       |  LD   H, E
-0x00cc: 6e       |  LD   L, [HL]
-0x00cd: 0e ec    |  LD   C, 0xEC
-0x00cf: cc dd dc |  CALL Z, 0xDCDD
-0x00d2: 99       |  SBC  A, C
-0x00d3: 9f       |  SBC  A, A
-0x00d4: bb       |  CP   A, E
-0x00d5: b9       |  CP   A, C
-0x00d6: 33       |  INC  SP
-0x00d7: 3e 3c    |  LD   A, 0x3C
-0x00d9: 42       |  LD   B, D
-0x00da: b9       |  CP   A, C
-0x00db: a5       |  AND  A, L
-0x00dc: b9       |  CP   A, C
-0x00dd: a5       |  AND  A, L
-0x00de: 42       |  LD   B, D
-0x00df: 3c       |  INC  A
-0x00e0: 21 04 01 |  LD   HL, 0x0104
-0x00e3: 11 a8 00 |  LD   DE, 0x00A8
-0x00e6: 1a       |  LD   A, [DE]
-0x00e7: 13       |  INC  DE
-0x00e8: be       |  CP   A, [HL]
-0x00e9: 20 fe    |  JR   NZ, 0x00E9
-0x00eb: 23       |  INC  HL
-0x00ec: 7d       |  LD   A, L
-0x00ed: fe 34    |  CP   A, 0x34
-0x00ef: 20 f5    |  JR   NZ, 0x00E6
-0x00f1: 06 19    |  LD   B, 0x19
-0x00f3: 78       |  LD   A, B
-0x00f4: 86       |  ADD  A, [HL]
-0x00f5: 23       |  INC  HL
-0x00f6: 05       |  DEC B
-0x00f7: 20 fb    |  JR   NZ, 0x00F4
-0x00f9: 86       |  ADD  A, [HL]
-0x00fa: 20 fe    |  JR   NZ, 0x00FA
-0x00fc: 3e 01    |  LD   A, 0x01
-0x00fe: e0 50    |  LDH  [0xFF50], A
+0x0098: C5       |  PUSH BC
+0x0099: CB 11    |  RL   C
+0x009B: 17       |  RLA 
+0x009C: C1       |  POP  BC
+0x009D: CB 11    |  RL   C
+0x009F: 17       |  RLA 
+0x00A0: 05       |  DEC B
+0x00A1: 20 F5    |  JR   NZ, 0x0098
+0x00A3: 22       |  LD   [HL+], A
+0x00A4: 23       |  INC  HL
+0x00A5: 22       |  LD   [HL+], A
+0x00A6: 23       |  INC  HL
+0x00A7: C9       |  RET
+0x00A8: CE ED    |  ADC  A, 0xED
+0x00AA: 66       |  LD   H, [HL]
+0x00AB: 66       |  LD   H, [HL]
+0x00AC: CC 0D 00 |  CALL Z, 0x000D
+0x00AF: 0B       |  DEC  BC
+0x00B0: 03       |  INC  BC
+0x00B1: 73       |  LD   [HL], E
+0x00B2: 00       |  NOP
+0x00B3: 83       |  ADD  A, E
+0x00B4: 00       |  NOP
+0x00B5: 0C       |  INC  C
+0x00B6: 00       |  NOP
+0x00B7: 0D       |  DEC C
+0x00B8: 00       |  NOP
+0x00B9: 08 11 1F |  LD   [0x1F11], SP
+0x00BC: 88       |  ADC  A, B
+0x00BD: 89       |  ADC  A, C
+0x00BE: 00       |  NOP
+0x00BF: 0E DC    |  LD   C, 0xDC
+0x00C1: CC 6E E6 |  CALL Z, 0xE66E
+0x00C4: DD       |  INVALID
+0x00C5: DD       |  INVALID
+0x00C6: D9       |  RETI
+0x00C7: 99       |  SBC  A, C
+0x00C8: BB       |  CP   A, E
+0x00C9: BB       |  CP   A, E
+0x00CA: 67       |  LD   H, A
+0x00CB: 63       |  LD   H, E
+0x00CC: 6E       |  LD   L, [HL]
+0x00CD: 0E EC    |  LD   C, 0xEC
+0x00CF: CC DD DC |  CALL Z, 0xDCDD
+0x00D2: 99       |  SBC  A, C
+0x00D3: 9F       |  SBC  A, A
+0x00D4: BB       |  CP   A, E
+0x00D5: B9       |  CP   A, C
+0x00D6: 33       |  INC  SP
+0x00D7: 3E 3C    |  LD   A, 0x3C
+0x00D9: 42       |  LD   B, D
+0x00DA: B9       |  CP   A, C
+0x00DB: A5       |  AND  A, L
+0x00DC: B9       |  CP   A, C
+0x00DD: A5       |  AND  A, L
+0x00DE: 42       |  LD   B, D
+0x00DF: 3C       |  INC  A
+0x00E0: 21 04 01 |  LD   HL, 0x0104
+0x00E3: 11 A8 00 |  LD   DE, 0x00A8
+0x00E6: 1A       |  LD   A, [DE]
+0x00E7: 13       |  INC  DE
+0x00E8: BE       |  CP   A, [HL]
+0x00E9: 20 FE    |  JR   NZ, 0x00E9
+0x00EB: 23       |  INC  HL
+0x00EC: 7D       |  LD   A, L
+0x00ED: FE 34    |  CP   A, 0x34
+0x00EF: 20 F5    |  JR   NZ, 0x00E6
+0x00F1: 06 19    |  LD   B, 0x19
+0x00F3: 78       |  LD   A, B
+0x00F4: 86       |  ADD  A, [HL]
+0x00F5: 23       |  INC  HL
+0x00F6: 05       |  DEC B
+0x00F7: 20 FB    |  JR   NZ, 0x00F4
+0x00F9: 86       |  ADD  A, [HL]
+0x00FA: 20 FE    |  JR   NZ, 0x00FA
+0x00FC: 3E 01    |  LD   A, 0x01
+0x00FE: E0 50    |  LDH  [0xFF50], A

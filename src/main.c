@@ -69,27 +69,26 @@ void gui(void) {
 
 }
 
-uint8_t *rom;
+RomImageT rom;
 
 
 int main(int argc, const char *argv[])
 {
-    int size;
 
     // Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
     SearchAndSetResourceDir("resources");
 
     if(argc < 2) {
         printf("Defaulting to Boot ROM\n");
-        rom = LoadFileData("ROMs/DMG_ROM.bin", &size);
+        loadRom(&rom, "ROMs/DMG_ROM.bin", 0);
     } else {
-        rom = LoadFileData(argv[2], &size);
+        loadRom(&rom, argv[2], 0x100);
     }
 
-    dumpMemory(rom, size);
-    disassemble(rom, size);
+    dumpMemory(rom.contents, rom.size);
+    disassembleRom(&rom);
 
-    UnloadFileData(rom);
+    unloadRom(&rom);
 
     return 0;
 }
