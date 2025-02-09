@@ -131,12 +131,21 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
     // most instructions are only 1 byte
     int consumed = 1;
 
-    switch( instruction & INST_BLOCK_MASK ) {
+    // Pull the most commonly referenced fields out of the instruction
+    const uint8_t block = INST_BLOCK_EXTRACT(instruction);
+    const uint8_t r8_a  = INST_R8_A_EXTRACT(instruction);
+    const uint8_t r8_b  = INST_R8_B_EXTRACT(instruction);
+    const uint8_t r16   = INST_R16_EXTRACT(instruction);
+    const uint8_t cond  = INST_COND_EXTRACT(instruction);
+    const uint8_t op_a  = INST_R8_A_EXTRACT(instruction);
+    const uint8_t op_b  = INST_R8_B_EXTRACT(instruction);
+
+    switch( block ) {
     case INST_BLOCK0:
-        switch( instruction & 0x07) {
+        switch( op_b ) {
         case 0:
             if( 0x20 == (instruction & 0x20) ) {
-                buff = buff + sprintf(buff, "JR   %s, 0x%04X", condDecode[INST_COND_EXTRACT(instruction)], MEM_IMM8_OFFSET_TO_ADDR(memory,offset));
+                buff = buff + sprintf(buff, "JR   %s, 0x%04X", condDecode[cond], MEM_IMM8_OFFSET_TO_ADDR(memory,offset));
                 consumed = 2;
             } else {
                 switch(INST_COND_EXTRACT(instruction)) {
@@ -159,38 +168,38 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
             break;
         case 1:
             if( 0x08 == (instruction & 0x08)) {
-                buff = buff + sprintf(buff, "ADD   HL, %s", r16Decode[INST_R16_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "ADD   HL, %s", r16Decode[r16]);
             } else {
-                buff = buff + sprintf(buff, "LD   %s, 0x%04X", r16Decode[INST_R16_EXTRACT(instruction)], MEM_IMM16_EXTRACT(memory, offset));
+                buff = buff + sprintf(buff, "LD   %s, 0x%04X", r16Decode[r16], MEM_IMM16_EXTRACT(memory, offset));
                 consumed = 3;
             }
             break;
         case 2:
             if( 0x08 == (instruction & 0x08)) {
-                buff = buff + sprintf(buff, "LD   A, [%s]", r16MemDecode[INST_R16_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "LD   A, [%s]", r16MemDecode[r16]);
             } else {
-                buff = buff + sprintf(buff, "LD   [%s], A", r16MemDecode[INST_R16_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "LD   [%s], A", r16MemDecode[r16]);
             }
             break;
         case 3:
             if( 0x08 == (instruction & 0x08)) {
-                buff = buff + sprintf(buff, "DEC  %s", r16Decode[INST_R16_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "DEC  %s", r16Decode[r16]);
             } else {
-                buff = buff + sprintf(buff, "INC  %s", r16Decode[INST_R16_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "INC  %s", r16Decode[r16]);
             }
             break;
         case 4:
-            buff = buff + sprintf(buff, "INC  %s", r8Decode[INST_R8_A_EXTRACT(instruction)]);
+            buff = buff + sprintf(buff, "INC  %s", r8Decode[r8_a]);
             break;
         case 5:
-            buff = buff + sprintf(buff, "DEC %s", r8Decode[INST_R8_A_EXTRACT(instruction)]);
+            buff = buff + sprintf(buff, "DEC %s", r8Decode[r8_a]);
             break;
         case 6:
-            buff = buff + sprintf(buff, "LD   %s, 0x%02X", r8Decode[INST_R8_A_EXTRACT(instruction)], memory[offset+1]);
+            buff = buff + sprintf(buff, "LD   %s, 0x%02X", r8Decode[r8_a], memory[offset+1]);
             consumed = 2;
             break;
         case 7:
-            buff = buff + sprintf(buff, "%s", bitopDecode[INST_ALU_OP_EXTRACT(instruction)]);
+            buff = buff + sprintf(buff, "%s", bitopDecode[op_a]);
             break;
         }
         break;
@@ -200,13 +209,13 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
         if(INST_HALT == instruction) {
             buff = buff + sprintf(buff, "HALT");
         } else {
-            buff = buff + sprintf(buff, "LD   %s, %s", r8Decode[INST_LD_DST_EXTRACT(instruction)], r8Decode[INST_LD_SRC_EXTRACT(instruction)]);
+            buff = buff + sprintf(buff, "LD   %s, %s", r8Decode[r8_a], r8Decode[r8_b]);
         }
         break;
 
     case INST_BLOCK2:
         // all ALU operations
-        buff = buff + sprintf(buff, "%s A, %s", aluDecode[INST_ALU_OP_EXTRACT(instruction)], r8Decode[INST_ALU_R8_EXTRACT(instruction)]);
+        buff = buff + sprintf(buff, "%s A, %s", aluDecode[op_a], r8Decode[r8_b]);
         break;
 
     case INST_BLOCK3:
@@ -214,24 +223,28 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
         if(INST_PREFIX == instruction) {
             // Handle Prefix types
             instruction =  memory[offset+1];
+            const uint8_t pfx_block = INST_BLOCK_EXTRACT(instruction);
+            const uint8_t pfx_op_a  = INST_R8_A_EXTRACT(instruction);
+            const uint8_t pfx_bit   = INST_R8_A_EXTRACT(instruction);
+            const uint8_t pfx_r8    = INST_R8_B_EXTRACT(instruction);
             consumed = 2;
-            switch( instruction & INST_BLOCK_MASK ) {
+            switch( pfx_block ) {
             case INST_BLOCK0:
-                buff = buff + sprintf(buff, "%s %s", pfx0Decode[INST_PFX0_OP_EXTRACT(instruction)], r8Decode[INST_PFX_R8_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "%s %s", pfx0Decode[pfx_op_a], r8Decode[pfx_r8]);
                 break;
             case INST_BLOCK1:
-                buff = buff + sprintf(buff, "BIT %d, %s", INST_PFX_BIT_EXTRACT(instruction), r8Decode[INST_PFX_R8_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "BIT %d, %s", pfx_bit, r8Decode[pfx_r8]);
                 break;
             case INST_BLOCK2:
-                buff = buff + sprintf(buff, "RES %d, %s", INST_PFX_BIT_EXTRACT(instruction), r8Decode[INST_PFX_R8_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "RES %d, %s", pfx_bit, r8Decode[pfx_r8]);
                 break;
             case INST_BLOCK3:
-                buff = buff + sprintf(buff, "SET %d, %s", INST_PFX_BIT_EXTRACT(instruction), r8Decode[INST_PFX_R8_EXTRACT(instruction)]);
+                buff = buff + sprintf(buff, "SET %d, %s", pfx_bit, r8Decode[pfx_r8]);
                 break;
             }
 
         } else {
-            switch( instruction & 0x07) {
+            switch( op_b ) {
             case 0:
                 if( 0x20 == (instruction & 0x20)) {
                     switch( INST_COND_EXTRACT(instruction) ) {
@@ -240,6 +253,7 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                         consumed = 2;
                         break;
                     case 1:
+                        // effectively: ADD SP, SP, E8
                         buff = buff + sprintf(buff, "ADD  SP, 0x%02X (signed)", memory[offset+1]);
                         consumed = 2;
                         break;
@@ -248,12 +262,13 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                         consumed = 2;
                         break;
                     case 3:
+                        // effectively: ADD HL, SP, E8
                         buff = buff + sprintf(buff, "LD   HL, SP + 0x%02X (signed)", memory[offset+1]);
                         consumed = 2;
                         break;
                     }
                 } else {
-                    buff = buff + sprintf(buff, "RET  %s", condDecode[INST_COND_EXTRACT(instruction)]);
+                    buff = buff + sprintf(buff, "RET  %s", condDecode[cond]);
                 }
                 break;
             case 1:
@@ -273,28 +288,29 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                         break;
                     }
                 } else {
-                    buff = buff + sprintf(buff, "POP  %s", r16StkDecode[INST_R16_EXTRACT(instruction)]);
+                    buff = buff + sprintf(buff, "POP  %s", r16StkDecode[r16]);
                 }
                 break;
             case 2:
                 if( 0x20 == (instruction & 0x20)) {
                     switch( (instruction & 0x18) >> 3 ) {
                     case 0:
-                        buff = buff + sprintf(buff, "LDH  [0xFF0C], A");
+                        buff = buff + sprintf(buff, "LDH  [0xFF00+C], A");
                         break;
                     case 1:
                         buff = buff + sprintf(buff, "LD   [0x%04X], A", MEM_IMM16_EXTRACT(memory, offset));
                         consumed = 3;
                         break;
                     case 2:
-                        buff = buff + sprintf(buff, "LDH  A, [0xFF0C]");
+                        buff = buff + sprintf(buff, "LDH  A, [0xFF00+C]");
                         break;
                     case 3:
                         buff = buff + sprintf(buff, "LD   A, [0x%04X]", MEM_IMM16_EXTRACT(memory, offset));
+                        consumed = 3;
                         break;
                     }
                 } else {
-                    buff = buff + sprintf(buff, "JP   %s, 0x%04X", condDecode[INST_COND_EXTRACT(instruction)], MEM_IMM16_EXTRACT(memory, offset));
+                    buff = buff + sprintf(buff, "JP   %s, 0x%04X", condDecode[cond], MEM_IMM16_EXTRACT(memory, offset));
                     consumed = 3;
                 }
                 break;
@@ -319,7 +335,7 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                 if( 0x20 == (instruction & 0x20)) {
                     buff = buff + sprintf(buff, "INVALID");
                 } else {
-                    buff = buff + sprintf(buff, "CALL %s, 0x%04X", condDecode[INST_COND_EXTRACT(instruction)], MEM_IMM16_EXTRACT(memory, offset));
+                    buff = buff + sprintf(buff, "CALL %s, 0x%04X", condDecode[cond], MEM_IMM16_EXTRACT(memory, offset));
                     consumed = 3;
                 }
                 break;
@@ -332,12 +348,12 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
                         buff = buff + sprintf(buff, "INVALID");
                     }
                 } else {
-                    buff = buff + sprintf(buff, "PUSH %s", r16StkDecode[INST_R16_EXTRACT(instruction)]);
+                    buff = buff + sprintf(buff, "PUSH %s", r16StkDecode[r16]);
                 }
                 break;
             case 6:
                 // alu with imm8 parameter
-                buff = buff + sprintf(buff, "%s A, 0x%02X", aluDecode[INST_ALU_OP_EXTRACT(instruction)], memory[offset+1]);
+                buff = buff + sprintf(buff, "%s A, 0x%02X", aluDecode[op_a], memory[offset+1]);
                 consumed = 2;
                 break;
             case 7:
@@ -351,16 +367,3 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer)
 
     return consumed;
 }
-
-/*
-switch( INST_COND_EXTRACT(instruction) ) {
-case 0:
-    break;
-case 1:
-    break;
-case 2:
-    break;
-case 3:
-    break;
-}
-*/

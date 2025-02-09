@@ -75,7 +75,7 @@ uint8_t bootRom[2048];
 int main(int argc, const char *argv[])
 {
     if(argc < 2) {
-        printf("ERROR: specify rom file");
+        printf("ERROR: specify rom file\n");
         return 1;
     }
 

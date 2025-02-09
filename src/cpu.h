@@ -35,10 +35,12 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer);
 
 
 #define INST_BLOCK_MASK (0xC0)
+#define INST_BLOCK_SHFT (6)
+#define INST_BLOCK_EXTRACT(instr)  ((instr & INST_BLOCK_MASK) >> INST_BLOCK_SHFT)
 #define INST_BLOCK0     (0x00)
-#define INST_BLOCK1     (0x40)
-#define INST_BLOCK2     (0x80)
-#define INST_BLOCK3     (0xC0)
+#define INST_BLOCK1     (0x01)
+#define INST_BLOCK2     (0x02)
+#define INST_BLOCK3     (0x03)
 
 #define INST_PREFIX     (0xCB)
 #define INST_HALT       (0x76)
@@ -56,18 +58,9 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer);
 #define INST_R16_EXTRACT(instr)  ((instr & INST_R16_MASK) >> INST_R16_SHFT)
 
 
-
-#define INST_LD_DST_MASK (0x38)
-#define INST_LD_DST_SHFT (3)
-#define INST_LD_DST_EXTRACT(instr)  ((instr & INST_LD_DST_MASK) >> INST_LD_DST_SHFT)
-#define INST_LD_SRC_MASK (0x07)
-#define INST_LD_SRC_SHFT (0)
-#define INST_LD_SRC_EXTRACT(instr)  ((instr & INST_LD_SRC_MASK) >> INST_LD_SRC_SHFT)
-
-
-#define INST_ALU_OP_MASK (0x38)
-#define INST_ALU_OP_SHFT (3)
-#define INST_ALU_OP_EXTRACT(instr)  ((instr & INST_ALU_OP_MASK) >> INST_ALU_OP_SHFT)
+#define INST_OPER_MASK (0x38)
+#define INST_OPER_SHFT (3)
+#define INST_OPER_EXTRACT(instr)  ((instr & INST_OPER_MASK) >> INST_OPER_SHFT)
 #define INST_ALU_OP_ADD  (0x0)
 #define INST_ALU_OP_ADC  (0x1)
 #define INST_ALU_OP_SUB  (0x2)
@@ -77,25 +70,10 @@ int disassembleInstruction(uint8_t *memory, const int offset, char *buffer);
 #define INST_ALU_OP_OR   (0x6)
 #define INST_ALU_OP_CP   (0x7)
 
-#define INST_ALU_R8_MASK    (0x07)
-#define INST_ALU_R8_SHFT    (0)
-#define INST_ALU_R8_EXTRACT(instr)  ((instr & INST_ALU_R8_MASK) >> INST_ALU_R8_SHFT)
-
-#define INST_PFX0_OP_MASK    (0x38)
-#define INST_PFX0_OP_SHFT    (3)
-#define INST_PFX0_OP_EXTRACT(instr)  ((instr & INST_PFX0_OP_MASK) >> INST_PFX0_OP_SHFT)
-
-#define INST_PFX_R8_MASK    (0x07)
-#define INST_PFX_R8_SHFT    (0)
-#define INST_PFX_R8_EXTRACT(instr)  ((instr & INST_PFX_R8_MASK) >> INST_PFX_R8_SHFT)
-
-#define INST_PFX_BIT_MASK    (0x38)
-#define INST_PFX_BIT_SHFT    (3)
-#define INST_PFX_BIT_EXTRACT(instr)  ((instr & INST_PFX_BIT_MASK) >> INST_PFX_BIT_SHFT)
 
 #define INST_RST_TGT3_MASK    (0x38)
-#define INST_RST_TGT3_SHFT    (0)
-#define INST_RST_TGT3_EXTRACT(instr)  ((instr & INST_PFX_BIT_MASK) >> INST_PFX_BIT_SHFT)
+#define INST_RST_TGT3_SHFT    (3)
+#define INST_RST_TGT3_EXTRACT(instr)  ((instr & INST_RST_TGT3_MASK) >> INST_RST_TGT3_SHFT)
 
 #define INST_COND_MASK    (0x18)
 #define INST_COND_SHFT    (3)
