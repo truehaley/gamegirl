@@ -100,6 +100,10 @@ raygui_version = "4.0"
 raygui_folder = "raygui-" .. raygui_version
 raygui_dir = "external/" .. raygui_folder
 
+if (os.isdir('external') == false) then
+    os.mkdir('external')
+end
+
 build_externals()
 require "external/premake-ecc-master/ecc"
 
@@ -112,10 +116,6 @@ baseName = path.getbasename(path.getdirectory(os.getcwd()));
 
 if (os.isdir('build_files') == false) then
     os.mkdir('build_files')
-end
-
-if (os.isdir('external') == false) then
-    os.mkdir('external')
 end
 
 
