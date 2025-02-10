@@ -82,10 +82,11 @@ int main(int argc, const char *argv[])
         printf("Defaulting to Boot ROM\n");
         loadRom(&rom, "ROMs/DMG_ROM.bin", 0);
     } else {
-        loadRom(&rom, argv[2], 0x100);
+        loadRom(&rom, argv[1], 0x100);
     }
 
     dumpMemory(rom.contents, rom.size);
+    preprocessRom(&rom, rom.entrypoint);
     disassembleRom(&rom);
 
     unloadRom(&rom);

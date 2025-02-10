@@ -25,13 +25,13 @@ typedef struct {
 #define ROM_JUMPDEST_MASK       (0x80)
 #define ROM_ENDCODE_MASK        (0x40)
 
-#define ROM_CONTENTTYPE(rom, offset)    (rom->contentFlags[offset] & ROM_CONTENTTYPE_MASK)
+#define ROM_CONTENTTYPE(rom, offset)    (rom->contentFlags[(offset)] & ROM_CONTENTTYPE_MASK)
 #define ROM_IS_DATA(rom, offset)        (ROM_CONTENTTYPE(rom, offset) == ROM_CONTENT_DATA)
 #define ROM_IS_CODE(rom, offset)        ((ROM_CONTENTTYPE(rom, offset) & ROM_CONTENT_OPCODE) == ROM_CONTENT_OPCODE)
 #define ROM_IS_INVALID(rom, offset)     (ROM_CONTENTTYPE(rom, offset) == ROM_CONTENT_INVALID)
 #define ROM_IS_VALID(rom, offset)       (!ROM_IS_INVALID(rom, offset))
-#define ROM_IS_JUMPDEST(rom, offset)    ((rom->contentFlags[offset] & ROM_JUMPDEST_MASK) == ROM_JUMPDEST_MASK)
-#define ROM_IS_ENDCODE(rom, offset)     ((rom->contentFlags[offset] & ROM_ENDCODE_MASK) == ROM_ENDCODE_MASK)
+#define ROM_IS_JUMPDEST(rom, offset)    ((rom->contentFlags[(offset)] & ROM_JUMPDEST_MASK) == ROM_JUMPDEST_MASK)
+#define ROM_IS_ENDCODE(rom, offset)     ((rom->contentFlags[(offset)] & ROM_ENDCODE_MASK) == ROM_ENDCODE_MASK)
 
 #define ROM_SET_CONTENTTYPE(rom, offset, type)  do { rom->contentFlags[offset] = ((rom->contentFlags[offset] & (~ROM_CONTENTTYPE_MASK)) | type); } while(0)
 #define ROM_SET_JUMPDEST(rom, offset)           do { rom->contentFlags[offset] = (rom->contentFlags[offset] | ROM_JUMPDEST_MASK); } while(0)
@@ -40,11 +40,12 @@ typedef struct {
 
 void loadRom(RomImageT * const rom, const char * const filename, int entrypoint);
 void unloadRom(RomImageT * const rom);
+void preprocessRom(RomImageT * const rom, int offset);
 void disassembleRom(RomImageT * const rom);
 
 void dumpMemory(const uint8_t * const src, const int size);
 
-int disassembleInstruction(RomImageT * const rom, const int offset, char *buffer);
+int disassembleInstruction(RomImageT * const rom, const int offset, char *buffer, int *jumpDest);
 
 
 
