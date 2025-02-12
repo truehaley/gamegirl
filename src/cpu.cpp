@@ -213,7 +213,7 @@ int disassembleInstruction(RomImageT * const rom, const int offset, char * const
                 break;
             case 3:
                 addr = MEM_IMM8_OFFSET_TO_ADDR(memory,offset);
-                buff = buff + sprintf(buff, "JR   0x%04X", addr);
+                buff = buff + sprintf(buff, "JR   LABEL_%04X", addr);
                 ROM_SET_JUMPDEST(rom, addr);
                 *jumpDest = addr;
                 ROM_SET_ENDCODE(rom, offset);
@@ -224,7 +224,7 @@ int disassembleInstruction(RomImageT * const rom, const int offset, char * const
             case 6:
             case 7:
                 addr = MEM_IMM8_OFFSET_TO_ADDR(memory,offset);
-                buff = buff + sprintf(buff, "JR   %s, 0x%04X", condDecode[cond], addr);
+                buff = buff + sprintf(buff, "JR   %s, LABEL_%04X", condDecode[cond], addr);
                 ROM_SET_JUMPDEST(rom, addr);
                 *jumpDest = addr;
                 consumed = 2;
@@ -371,7 +371,7 @@ int disassembleInstruction(RomImageT * const rom, const int offset, char * const
                 case 2:
                 case 3:
                     addr = MEM_IMM16_EXTRACT(memory, offset);
-                    buff = buff + sprintf(buff, "JP   %s, 0x%04X", condDecode[cond], addr);
+                    buff = buff + sprintf(buff, "JP   %s, LABEL_%04X", condDecode[cond], addr);
                     ROM_SET_JUMPDEST(rom, addr);
                     *jumpDest = addr;
                     consumed = 3;
@@ -396,7 +396,7 @@ int disassembleInstruction(RomImageT * const rom, const int offset, char * const
                 switch( op_a ) {
                 case 0:
                     addr = MEM_IMM16_EXTRACT(memory, offset);
-                    buff = buff + sprintf(buff, "JP   0x%04X", addr);
+                    buff = buff + sprintf(buff, "JP   LABEL_%04X", addr);
                     ROM_SET_JUMPDEST(rom, addr);
                     *jumpDest = addr;
                     ROM_SET_ENDCODE(rom, offset);
@@ -421,7 +421,7 @@ int disassembleInstruction(RomImageT * const rom, const int offset, char * const
             case 4:
                 if( op_a <= 3 ) {
                     addr = MEM_IMM16_EXTRACT(memory, offset);
-                    buff = buff + sprintf(buff, "CALL %s, 0x%04X", condDecode[cond], addr);
+                    buff = buff + sprintf(buff, "CALL %s, LABEL_%04X", condDecode[cond], addr);
                     ROM_SET_JUMPDEST(rom, addr);
                     *jumpDest = addr;
                     consumed = 3;
@@ -440,7 +440,7 @@ int disassembleInstruction(RomImageT * const rom, const int offset, char * const
                     break;
                 case 1:
                     addr = MEM_IMM16_EXTRACT(memory, offset);
-                    buff = buff + sprintf(buff, "CALL 0x%04X", addr);
+                    buff = buff + sprintf(buff, "CALL LABEL_%04X", addr);
                     ROM_SET_JUMPDEST(rom, addr);
                     *jumpDest = addr;
                     consumed = 3;
@@ -460,7 +460,7 @@ int disassembleInstruction(RomImageT * const rom, const int offset, char * const
                 break;
             case 7:
                 addr = INST_RST_TGT3_EXTRACT(instruction) * 8;
-                buff = buff + sprintf(buff, "RST 0x%02X", addr);
+                buff = buff + sprintf(buff, "RST 0x%02X (LABEL_%04X)", addr, addr);
                 ROM_SET_JUMPDEST(rom, addr);
                 *jumpDest = addr;
                 break;

@@ -23,7 +23,7 @@ LABEL_0000:
 LABEL_0007:
         0007 | 32       |  LD   [HL-], A
         0008 | CB 7C    |  BIT  7, H
-        000A | 20 FB    |  JR   NZ, 0x0007
+        000A | 20 FB    |  JR   NZ, LABEL_0007
         000C | 21 26 FF |  LD   HL, 0xFF26
         000F | 0E 11    |  LD   C, 0x11
         0011 | 3E 80    |  LD   A, 0x80
@@ -41,12 +41,12 @@ LABEL_0007:
         0024 | 21 10 80 |  LD   HL, 0x8010
 LABEL_0027:
         0027 | 1A       |  LD   A, [DE]
-        0028 | CD 95 00 |  CALL 0x0095
-        002B | CD 96 00 |  CALL 0x0096
+        0028 | CD 95 00 |  CALL LABEL_0095
+        002B | CD 96 00 |  CALL LABEL_0096
         002E | 13       |  INC  DE
         002F | 7B       |  LD   A, E
         0030 | FE 34    |  CP   A, 0x34
-        0032 | 20 F3    |  JR   NZ, 0x0027
+        0032 | 20 F3    |  JR   NZ, LABEL_0027
         0034 | 11 D8 00 |  LD   DE, 0x00D8
         0037 | 06 08    |  LD   B, 0x08
 LABEL_0039:
@@ -55,7 +55,7 @@ LABEL_0039:
         003B | 22       |  LD   [HL+], A
         003C | 23       |  INC  HL
         003D | 05       |  DEC  B
-        003E | 20 F9    |  JR   NZ, 0x0039
+        003E | 20 F9    |  JR   NZ, LABEL_0039
         0040 | 3E 19    |  LD   A, 0x19
         0042 | EA 10 99 |  LD   [0x9910], A
         0045 | 21 2F 99 |  LD   HL, 0x992F
@@ -63,12 +63,12 @@ LABEL_0048:
         0048 | 0E 0C    |  LD   C, 0x0C
 LABEL_004A:
         004A | 3D       |  DEC  A
-        004B | 28 08    |  JR   Z, 0x0055
+        004B | 28 08    |  JR   Z, LABEL_0055
         004D | 32       |  LD   [HL-], A
         004E | 0D       |  DEC  C
-        004F | 20 F9    |  JR   NZ, 0x004A
+        004F | 20 F9    |  JR   NZ, LABEL_004A
         0051 | 2E 0F    |  LD   L, 0x0F
-        0053 | 18 F3    |  JR   0x0048
+        0053 | 18 F3    |  JR   LABEL_0048
 LABEL_0055:
         0055 | 67       |  LD   H, A
         0056 | 3E 64    |  LD   A, 0x64
@@ -84,20 +84,20 @@ LABEL_0062:
 LABEL_0064:
         0064 | F0 44    |  LDH  A, [0xFF44]
         0066 | FE 90    |  CP   A, 0x90
-        0068 | 20 FA    |  JR   NZ, 0x0064
+        0068 | 20 FA    |  JR   NZ, LABEL_0064
         006A | 0D       |  DEC  C
-        006B | 20 F7    |  JR   NZ, 0x0064
+        006B | 20 F7    |  JR   NZ, LABEL_0064
         006D | 1D       |  DEC  E
-        006E | 20 F2    |  JR   NZ, 0x0062
+        006E | 20 F2    |  JR   NZ, LABEL_0062
         0070 | 0E 13    |  LD   C, 0x13
         0072 | 24       |  INC  H
         0073 | 7C       |  LD   A, H
         0074 | 1E 83    |  LD   E, 0x83
         0076 | FE 62    |  CP   A, 0x62
-        0078 | 28 06    |  JR   Z, 0x0080
+        0078 | 28 06    |  JR   Z, LABEL_0080
         007A | 1E C1    |  LD   E, 0xC1
         007C | FE 64    |  CP   A, 0x64
-        007E | 20 06    |  JR   NZ, 0x0086
+        007E | 20 06    |  JR   NZ, LABEL_0086
 LABEL_0080:
         0080 | 7B       |  LD   A, E
         0081 | E2       |  LDH  [0xFF00+C], A
@@ -109,11 +109,11 @@ LABEL_0086:
         0088 | 90       |  SUB  A, B
         0089 | E0 42    |  LDH  [0xFF42], A
         008B | 15       |  DEC  D
-        008C | 20 D2    |  JR   NZ, 0x0060
+        008C | 20 D2    |  JR   NZ, LABEL_0060
         008E | 05       |  DEC  B
-        008F | 20 4F    |  JR   NZ, 0x00E0
+        008F | 20 4F    |  JR   NZ, LABEL_00E0
         0091 | 16 20    |  LD   D, 0x20
-        0093 | 18 CB    |  JR   0x0060
+        0093 | 18 CB    |  JR   LABEL_0060
 LABEL_0095:
         0095 | 4F       |  LD   C, A
 LABEL_0096:
@@ -126,7 +126,7 @@ LABEL_0098:
         009D | CB 11    |  RL   C
         009F | 17       |  RLA 
         00A0 | 05       |  DEC  B
-        00A1 | 20 F5    |  JR   NZ, 0x0098
+        00A1 | 20 F5    |  JR   NZ, LABEL_0098
         00A3 | 22       |  LD   [HL+], A
         00A4 | 23       |  INC  HL
         00A5 | 22       |  LD   [HL+], A
@@ -145,20 +145,20 @@ LABEL_00E6:
         00E7 | 13       |  INC  DE
         00E8 | BE       |  CP   A, [HL]
 LABEL_00E9:
-        00E9 | 20 FE    |  JR   NZ, 0x00E9
+        00E9 | 20 FE    |  JR   NZ, LABEL_00E9
         00EB | 23       |  INC  HL
         00EC | 7D       |  LD   A, L
         00ED | FE 34    |  CP   A, 0x34
-        00EF | 20 F5    |  JR   NZ, 0x00E6
+        00EF | 20 F5    |  JR   NZ, LABEL_00E6
         00F1 | 06 19    |  LD   B, 0x19
         00F3 | 78       |  LD   A, B
 LABEL_00F4:
         00F4 | 86       |  ADD  A, [HL]
         00F5 | 23       |  INC  HL
         00F6 | 05       |  DEC  B
-        00F7 | 20 FB    |  JR   NZ, 0x00F4
+        00F7 | 20 FB    |  JR   NZ, LABEL_00F4
         00F9 | 86       |  ADD  A, [HL]
 LABEL_00FA:
-        00FA | 20 FE    |  JR   NZ, 0x00FA
+        00FA | 20 FE    |  JR   NZ, LABEL_00FA
         00FC | 3E 01    |  LD   A, 0x01
         00FE | E0 50    |  LDH  [0xFF50], A
