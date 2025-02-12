@@ -4,18 +4,25 @@
 #include "utils.h"
 #include "cpu.h"
 
-void loadRom(RomImageT * const rom, const char * const filename, int entrypoint)
+
+
+Status loadRom(RomImage * const rom, const char * const filename, int entrypoint)
 {
+    memset(rom, 0, sizeof(RomImage));
+
     rom->contents = LoadFileData(filename, &(rom->size));
+    if( NULL == rom->contents ) {
+        return FAILURE;
+    }
     rom->contentFlags = (uint8_t *)MemAlloc(rom->size);
     // Assume contents are data to start
     memset(rom->contentFlags, ROM_CONTENT_DATA, rom->size);
     rom->entrypoint = entrypoint;
     ROM_SET_JUMPDEST(rom, entrypoint);
-    ROM_SET_JUMPDEST(rom, 0);
+    return SUCCESS;
 }
 
-void unloadRom(RomImageT * const rom)
+void unloadRom(RomImage * const rom)
 {
     UnloadFileData(rom->contents);
     MemFree(rom->contentFlags);
@@ -34,14 +41,14 @@ void dumpMemory(const uint8_t * const src, const int size)
     }
 }
 
-void preprocessRom(RomImageT * const rom, int offset)
+void preprocessRom(RomImage * const rom, int offset)
 {
     char buffer[32];
     int bytesPerInst;
     int destination=0;
 
     //printf("preprocess: %04x\n", offset);
-    if( ROM_IS_CODE(rom, offset) ) {
+    if( ROM_IS_CODE(rom, offset) || ROM_IS_INVALID(rom, offset) ) {
         return;  // we've already processed this destination
     }
 
@@ -58,7 +65,7 @@ void preprocessRom(RomImageT * const rom, int offset)
     }
 }
 
-void disassembleRom(RomImageT * const rom)
+void disassembleRom(RomImage * const rom)
 {
     char buffer[32];
     int bytesPerInst;
@@ -173,7 +180,7 @@ const char * const condDecode[] = {
 
 // buffer parameter must be large enough!!!
 // returns number of bytes consumed
-int disassembleInstruction(RomImageT * const rom, const int offset, char * const buffer, int *jumpDest)
+int disassembleInstruction(RomImage * const rom, const int offset, char * const buffer, int *jumpDest)
 {
     const uint8_t *memory = rom->contents;
     uint8_t instruction = memory[offset];

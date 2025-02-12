@@ -7,6 +7,7 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 
 */
 
+#include "cartridge.h"
 #include "raylib.h"
 #include "raygui.h"
 #include "resource_dir.h"// utility header for SearchAndSetResourceDir
@@ -69,27 +70,33 @@ void gui(void) {
 
 }
 
-RomImageT rom;
+RomImage bootrom;
+Cartridge cartridge;
 
 
 int main(int argc, const char *argv[])
 {
-
     // Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-    SearchAndSetResourceDir("resources");
+    //SearchAndSetResourceDir("resources");
 
-    if(argc < 2) {
-        printf("Defaulting to Boot ROM\n");
-        loadRom(&rom, "ROMs/DMG_ROM.bin", 0);
+    printf("Loading Boot ROM...");
+    if(SUCCESS != loadRom(&bootrom, "Resources/ROMs/DMG_ROM.bin", BOOTROM_ENTRY)) {
+        printf("ERROR\n");
+        exit(1);
+    }
+    preprocessRom(&bootrom, BOOTROM_ENTRY);
+    printf("SUCCESS\n");
+
+    if( argc > 1 ) {
+        loadCartridge(&cartridge, argv[1]);
+        //dumpMemory(cartridge.rom.contents, cartridge.rom.size);
+        disassembleRom(&cartridge.rom);
+        unloadCartridge(&cartridge);
     } else {
-        loadRom(&rom, argv[1], 0x100);
+        dumpMemory(bootrom.contents, bootrom.size);
+        disassembleRom(&bootrom);
     }
 
-    dumpMemory(rom.contents, rom.size);
-    preprocessRom(&rom, rom.entrypoint);
-    disassembleRom(&rom);
-
-    unloadRom(&rom);
-
+    unloadRom(&bootrom);
     return 0;
 }
