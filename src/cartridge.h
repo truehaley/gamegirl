@@ -3,7 +3,9 @@
 
 #include <stdint.h>
 #include "utils.h"
+#include "mem.h"
 #include "cpu.h"
+
 
 #ifdef __cplusplus
 extern "C" {

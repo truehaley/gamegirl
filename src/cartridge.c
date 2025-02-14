@@ -339,4 +339,5 @@ failure:
 void unloadCartridge(Cartridge * const cart)
 {
     unloadRom(&cart->rom);
+    memset(cart, 0, sizeof(Cartridge));
 }

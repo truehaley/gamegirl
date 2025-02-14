@@ -1,33 +1,10 @@
 #include <stdio.h>
 #include <string.h>
+#include "mem.h"
 #include "raylib.h"
 #include "utils.h"
 #include "cpu.h"
 
-
-
-Status loadRom(RomImage * const rom, const char * const filename, int entrypoint)
-{
-    memset(rom, 0, sizeof(RomImage));
-
-    rom->contents = LoadFileData(filename, &(rom->size));
-    if( NULL == rom->contents ) {
-        return FAILURE;
-    }
-    rom->contentFlags = (uint8_t *)MemAlloc(rom->size);
-    // Assume contents are data to start
-    memset(rom->contentFlags, ROM_CONTENT_DATA, rom->size);
-    rom->entrypoint = entrypoint;
-    ROM_SET_JUMPDEST(rom, entrypoint);
-    return SUCCESS;
-}
-
-void unloadRom(RomImage * const rom)
-{
-    UnloadFileData(rom->contents);
-    MemFree(rom->contentFlags);
-    rom->size = 0;
-}
 
 void dumpMemory(const uint8_t * const src, const int size)
 {
@@ -183,7 +160,7 @@ const char * const condDecode[] = {
 int disassembleInstruction(RomImage * const rom, const int offset, char * const buffer, int *jumpDest)
 {
     const uint8_t *memory = rom->contents;
-    uint8_t instruction = memory[offset];
+    const uint8_t instruction = memory[offset];
     char *buff = buffer;
     buff[0]='\0';
     // most instructions are only 1 byte
@@ -293,11 +270,11 @@ int disassembleInstruction(RomImage * const rom, const int offset, char * const 
 
         if(INST_PREFIX == instruction) {
             // Handle Prefix types
-            instruction =  memory[offset+1];
-            const uint8_t pfx_block = INST_BLOCK_EXTRACT(instruction);
-            const uint8_t pfx_op_a  = INST_R8_A_EXTRACT(instruction);
-            const uint8_t pfx_bit   = INST_R8_A_EXTRACT(instruction);
-            const uint8_t pfx_r8    = INST_R8_B_EXTRACT(instruction);
+            const uint8_t pfx_inst =  memory[offset+1];
+            const uint8_t pfx_block = INST_BLOCK_EXTRACT(pfx_inst);
+            const uint8_t pfx_op_a  = INST_R8_A_EXTRACT(pfx_inst);
+            const uint8_t pfx_bit   = INST_R8_A_EXTRACT(pfx_inst);
+            const uint8_t pfx_r8    = INST_R8_B_EXTRACT(pfx_inst);
             consumed = 2;
             switch( pfx_block ) {
             case INST_BLOCK0:
@@ -479,9 +456,17 @@ int disassembleInstruction(RomImage * const rom, const int offset, char * const 
     if ( valid ) {
         ROM_SET_CONTENTTYPE(rom, offset, ROM_CONTENT_OPCODE);
         if( 2 == consumed ) {
-            ROM_SET_CONTENTTYPE(rom, offset+1, ROM_CONTENT_IMM8);
+            ROM_SET_MOREBYTES(rom, offset);
+            if( INST_PREFIX == instruction ) {
+                ROM_SET_CONTENTTYPE(rom, offset, ROM_CONTENT_PREFIX);
+                ROM_SET_CONTENTTYPE(rom, offset+1, ROM_CONTENT_PREFIXOP);
+            } else {
+                ROM_SET_CONTENTTYPE(rom, offset+1, ROM_CONTENT_IMM8);
+            }
         } else if ( 3 == consumed ) {
+            ROM_SET_MOREBYTES(rom, offset);
             ROM_SET_CONTENTTYPE(rom, offset+1, ROM_CONTENT_IMM16L);
+            ROM_SET_MOREBYTES(rom, offset+1);
             ROM_SET_CONTENTTYPE(rom, offset+2, ROM_CONTENT_IMM16H);
         }
     } else {
