@@ -200,7 +200,7 @@ int disassembleInstruction(RomImage * const rom, const int offset, char * const 
                 buff = buff + sprintf(buff, "JR   LABEL_%04X", addr);
                 ROM_SET_JUMPDEST(rom, addr);
                 *jumpDest = addr;
-                ROM_SET_ENDCODE(rom, offset);
+                ROM_SET_ENDCODE(rom, offset+1);
                 consumed = 2;
                 break;
             case 4:
@@ -383,7 +383,7 @@ int disassembleInstruction(RomImage * const rom, const int offset, char * const 
                     buff = buff + sprintf(buff, "JP   LABEL_%04X", addr);
                     ROM_SET_JUMPDEST(rom, addr);
                     *jumpDest = addr;
-                    ROM_SET_ENDCODE(rom, offset);
+                    ROM_SET_ENDCODE(rom, offset+2);
                     consumed = 3;
                     break;
                 case 1:  // PREFIX OPCODE HANDLED ABOVE, fall through to invalid here
