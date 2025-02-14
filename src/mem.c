@@ -102,28 +102,40 @@ static void guiDrawRomLine(Vector2 anchor, int view, int lineNum)
     for(int index=0; offset < maxOffset; index++, offset++) {
         Color highlightColor = guiRomHighlightColor(rom, offset);
         Rectangle highlightRect = {anchor.x-FONTWIDTH/2, anchor.y-1, FONTWIDTH*3-1, LINE_HEIGHT-1};
-        if ( ROM_HAS_MOREBYTES(rom, offset) && (offset < maxOffset-1) ) {
+        if ( ROM_HAS_MOREBYTES(rom, offset) && ((BYTES_PER_LINE/2-1) != index) && ((BYTES_PER_LINE-1) != index) ) {
             highlightRect.width += 1;
         }
         DrawRectangleRec(highlightRect, highlightColor);
-        if( (ROM_CONTENT_OPCODE == ROM_CONTENTTYPE(rom, offset)) || ROM_CONTENT_PREFIX == ROM_CONTENTTYPE(rom, offset) ) {
-            DrawLine(highlightRect.x+1,highlightRect.y,
-                     highlightRect.x+1,highlightRect.y+highlightRect.height,
-                     GRAY);
-        }
         if( ROM_IS_CODE(rom, offset) ) {
+            Color lineColor = ROM_IS_JUMPDEST(rom, offset)?GREEN:GRAY;
+            if( (ROM_CONTENT_OPCODE == ROM_CONTENTTYPE(rom, offset))
+                || ROM_CONTENT_PREFIX == ROM_CONTENTTYPE(rom, offset) ) {
+                DrawLine(highlightRect.x+1,highlightRect.y,
+                        highlightRect.x+1,highlightRect.y+highlightRect.height,
+                        lineColor);
+            }
             DrawLine(highlightRect.x, highlightRect.y+1,
-                     highlightRect.x+highlightRect.width, highlightRect.y+1,
-                     GRAY);
+                     highlightRect.x+highlightRect.width/2, highlightRect.y+1,
+                     lineColor);
             DrawLine(highlightRect.x, highlightRect.y+highlightRect.height,
+                     highlightRect.x+highlightRect.width/2, highlightRect.y+highlightRect.height,
+                     lineColor);
+            lineColor = (ROM_IS_ENDCODE(rom, offset))? RED: GRAY;
+            DrawLine(highlightRect.x+highlightRect.width/2, highlightRect.y+1,
+                     highlightRect.x+highlightRect.width, highlightRect.y+1,
+                     lineColor);
+            DrawLine(highlightRect.x+highlightRect.width/2, highlightRect.y+highlightRect.height,
                      highlightRect.x+highlightRect.width, highlightRect.y+highlightRect.height,
-                     GRAY);
-            // when using highlightcolor again here, it has the really nice effect of just
-            //  darkening the highlight a little bit since its drawing another line with alpha on top
-            //  of existing highlightcolor
-            DrawLine(highlightRect.x+highlightRect.width, highlightRect.y,
+                     lineColor);
+            if( ROM_HAS_MOREBYTES(rom, offset) ) {
+                // when using highlightcolor again here, it has the really nice effect of just
+                //  darkening the highlight a little bit since its drawing another line with alpha on top
+                //  of existing highlightcolor
+                lineColor = highlightColor;
+            }
+           DrawLine(highlightRect.x+highlightRect.width, highlightRect.y,
                     highlightRect.x+highlightRect.width, highlightRect.y+highlightRect.height,
-                    (ROM_HAS_MOREBYTES(rom, offset))?highlightColor:GRAY);
+                    lineColor);
         }
 
         uint8_t data = rom->contents[offset];
@@ -209,7 +221,7 @@ void guiDrawMemView(void)
     int startLine = -(scrollY/LINE_HEIGHT);
     float scrollOffset = scrollY % LINE_HEIGHT;
 
-    DrawText(TextFormat("[%f, %d, %d]", memView[selectedView].scrollPosition.y, scrollY, startLine), 4, 4, 20, RED);
+    //DrawText(TextFormat("[%f, %d, %d]", memView[selectedView].scrollPosition.y, scrollY, startLine), 4, 4, 20, RED);
 
     BeginScissorMode(viewPort.x, viewPort.y, viewPort.width, viewPort.height);
         for( int viewRow = 0 ; viewRow < 16+1; viewRow++ ) {

@@ -111,6 +111,7 @@ void gui(void)
 
             guiDrawMemView();
 
+            /*
             GuiScrollPanel(panelRec, NULL, panelContentRec, &panelScroll, &panelView);
 
             BeginScissorMode(panelView.x, panelView.y, panelView.width, panelView.height);
@@ -119,13 +120,13 @@ void gui(void)
 
             if (showContentArea) DrawRectangle(panelRec.x + panelScroll.x, panelRec.y + panelScroll.y, panelContentRec.width, panelContentRec.height, Fade(RED, 0.1));
 
-            //DrawStyleEditControls();
+            DrawStyleEditControls();
 
             GuiCheckBox((Rectangle){ 565, 80, 20, 20 }, "SHOW CONTENT AREA", &showContentArea);
 
             GuiSliderBar((Rectangle){ 590, 385, 145, 15}, "WIDTH", TextFormat("%i", (int)panelContentRec.width), &panelContentRec.width, 1, 600);
             GuiSliderBar((Rectangle){ 590, 410, 145, 15 }, "HEIGHT", TextFormat("%i", (int)panelContentRec.height), &panelContentRec.height, 1, 400);
-
+            */
             /*
             // Setup the back buffer for drawing (clear color and depth buffers)
             //ClearBackground(BLACK);
