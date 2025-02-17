@@ -1,15 +1,5 @@
-
-#include "raylib.h"
-#include "raygui.h"
-#include "mem.h"
+#include "gb.h"
 #include "gui.h"
-#include "utils.h"
-#include "cartridge.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-
 
 #define BYTES_PER_LINE  (16)
 #define LINE_HEIGHT     (18)
@@ -35,11 +25,6 @@ static int numViews = 0;
 
 static char memViewNames[128];
 
-void memInit(void)
-{
-    memset(memView, 0, sizeof(memView));
-    memset(memViewNames, 0, sizeof(memViewNames));
-}
 
 static void updateMemViewNames(void)
 {
@@ -231,6 +216,18 @@ void guiDrawMemView(void)
     EndScissorMode();
 }
 
+void dumpMemory(const uint8_t * const src, const int size)
+{
+    for(int offset = 0; offset < size; offset += 0x10) {
+        printf("0x%04x | ", offset);
+        for(int index = 0; index < 16; index++) {
+            if( index == 8 ) { printf(": "); }
+            printf("%02X ", src[offset+index]);
+        }
+        printf("\n");
+    }
+}
+
 Status allocateRam(RamImage * const ram, const int size)
 {
     memset(ram, 0, sizeof(RamImage));
@@ -272,4 +269,12 @@ void unloadRom(RomImage * const rom)
     UnloadFileData(rom->contents);
     MemFree(rom->contentFlags);
     memset(rom, 0, sizeof(RomImage));
+}
+
+
+
+void memInit(void)
+{
+    memset(memView, 0, sizeof(memView));
+    memset(memViewNames, 0, sizeof(memViewNames));
 }

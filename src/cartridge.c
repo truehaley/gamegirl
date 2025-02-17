@@ -1,9 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include "raylib.h"
-#include "utils.h"
-#include "cpu.h"
-#include "cartridge.h"
+#include "gb.h"
 
 const OldLicenseeDecoder oldLicensees[] = {
     {0x00,    "None"},

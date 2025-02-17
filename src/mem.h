@@ -1,24 +1,11 @@
 #ifndef __MEM_H__
 #define __MEM_H__
 
-#include <stdint.h>
-#include "utils.h"
+#include "gb_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-    int size;
-    uint8_t *contents;
-    uint8_t *contentFlags;
-    int entrypoint;
-} RomImage;
-
-typedef struct {
-    int size;
-    uint8_t *contents;
-} RamImage;
 
 #define ROM_CONTENTTYPE_MASK    (0x0F)
 #define ROM_CONTENT_UNKNOWN     (0x00)
@@ -59,6 +46,7 @@ void addRomView(RomImage *rom, const char * const name);
 void addRamView(RamImage *ram, const char * const name);
 void setMemViewHighlight(int viewNum, int offset, int length);
 void guiDrawMemView(void);
+void dumpMemory(const uint8_t * const src, const int size);
 
 
 Status allocateRam(RamImage * const ram, const int size);
@@ -66,7 +54,6 @@ void deallocateRam(RamImage * const ram);
 
 Status loadRom(RomImage * const rom, const char * const filename, int entrypoint);
 void unloadRom(RomImage * const rom);
-
 
 
 #ifdef __cplusplus

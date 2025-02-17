@@ -1,6 +1,10 @@
 #ifndef __GUI_H__
 #define __GUI_H__
 
+#include "raylib.h"
+#include "raygui.h"
+#include "gb_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

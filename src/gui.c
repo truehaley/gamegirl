@@ -1,8 +1,7 @@
-#include "raylib.h"
-#include "raygui.h"
 #include "gui.h"
-#include "mem.h"
-#include <stdlib.h>
+#include "cpu.h"
+#include "gb.h"
+#include "raylib.h"
 
 Font firaFont;
 
@@ -94,6 +93,8 @@ void gui(void)
         int activeView=0;
         bool showContentArea = true;
 
+    int instructionsPerTab = 10;
+    bool running=false;
 
     // game loop
     while (!WindowShouldClose())// run the loop untill the user presses ESCAPE or presses the Close button on the window
@@ -102,6 +103,39 @@ void gui(void)
         //----------------------------------------------------------------------------------
         // TODO: Implement required update logic
         //----------------------------------------------------------------------------------
+        if(IsKeyPressed(KEY_SPACE)) {
+            executeInstruction();
+            running = false;
+        }
+        if(IsKeyPressed(KEY_TAB) | running) {
+            for(int i=0; i<instructionsPerTab; i++) {
+                executeInstruction();
+                if( breakpoint() ) {
+                    running = false;
+                    break;
+                }
+            }
+        }
+        if(IsKeyPressed(KEY_UP)) {
+            instructionsPerTab+=10;
+        }
+        if(IsKeyPressed(KEY_DOWN)) {
+            instructionsPerTab-=10;
+        }
+        if(IsKeyPressed(KEY_LEFT)) {
+            instructionsPerTab-=1;
+        }
+        if(IsKeyPressed(KEY_RIGHT)) {
+            instructionsPerTab+=1;
+        }
+        if(IsKeyPressed(KEY_R)) {
+            if(IsKeyDown(KEY_LEFT_SHIFT)) {
+                resetCpu();
+            } else {
+                running=true;
+            }
+        }
+
 
         // drawing
         BeginDrawing();
@@ -109,7 +143,9 @@ void gui(void)
 
             //DrawText(TextFormat("[%f, %f]", panelScroll.x, panelScroll.y), 4, 4, 20, RED);
 
+            guiDrawCpuState();
             guiDrawMemView();
+            DrawText(TextFormat("[%d]", instructionsPerTab), 4, 4, 20, RED);
 
             /*
             GuiScrollPanel(panelRec, NULL, panelContentRec, &panelScroll, &panelView);

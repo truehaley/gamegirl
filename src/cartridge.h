@@ -1,11 +1,7 @@
 #ifndef __CARTRIDGE_H__
 #define __CARTRIDGE_H__
 
-#include <stdint.h>
-#include "utils.h"
-#include "mem.h"
-#include "cpu.h"
-
+#include "gb_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -161,6 +157,7 @@ typedef struct {
     const char * const name;
 } NewLicenseeDecoder;
 
+typedef uint8_t (mapperGetRom8)(uint16_t addr);
 
 typedef struct {
     RomImage rom;
@@ -169,6 +166,7 @@ typedef struct {
     uint8_t cgbMode;
     uint32_t romSize;
     uint32_t ramSize;
+    mapperGetRom8 *getCartMappedRom8;
 } Cartridge;
 
 

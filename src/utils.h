@@ -9,11 +9,8 @@ extern "C" {
 #define MAX(a,b)    ((a<b)?b:a)
 #define NUM_ELEMENTS(array)     (sizeof(array) / sizeof(array[0]))
 
-typedef enum {
-    SUCCESS,
-    FAILURE,
-
-} Status;
+#define MSB(val16)  ((uint8_t)(((val16) & 0xFF00) >> 8))
+#define LSB(val16)  ((uint8_t)(((val16) & 0x00FF)))
 
 
 #ifdef __cplusplus

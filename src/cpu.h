@@ -1,9 +1,7 @@
 #ifndef __CPU_H__
 #define __CPU_H__
 
-#include <stdint.h>
-#include "mem.h"
-#include "utils.h"
+#include "gb_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,19 +9,6 @@ extern "C" {
 
 #define BOOTROM_ENTRY   (0)
 #define CARTRIDGE_ENTRY (0x100)
-
-
-
-void preprocessRom(RomImage * const rom, int offset);
-void disassembleRom(RomImage * const rom);
-
-void dumpMemory(const uint8_t * const src, const int size);
-
-int disassembleInstruction(RomImage * const rom, const int offset, char *buffer, int *jumpDest);
-
-
-
-
 
 #define R8_B    (0x0)
 #define R8_C    (0x1)
@@ -33,8 +18,8 @@ int disassembleInstruction(RomImage * const rom, const int offset, char *buffer,
 #define R8_L    (0x5)
 #define R8_HL   (0x6)
 #define R8_A    (0x7)
-#define R8_IMM8 (0x6)
-#define R8_RST  (0x7)
+//#define R8_IMM8 (0x6)
+//#define R8_RST  (0x7)
 
 #define R16_BC  (0x0)
 #define R16_DE  (0x1)
@@ -90,6 +75,15 @@ int disassembleInstruction(RomImage * const rom, const int offset, char *buffer,
 #define MEM_IMM16_EXTRACT(mem, offset)  ((mem[offset+2]<<8)|mem[offset+1])
 #define MEM_IMM8_OFFSET_TO_ADDR(mem, offset)  (((int16_t)offset)+((int8_t)memory[offset+1])+2)
 #define MEM_IMM8_H_TO_ADDR(mem, offset)  (0xFF00+memory[offset+1])
+
+void guiDrawCpuState(void);
+void resetCpu(void);
+void executeInstruction(void);
+bool breakpoint(void);
+
+void preprocessRom(RomImage * const rom, int offset);
+void disassembleRom(RomImage * const rom);
+int disassembleInstruction(RomImage * const rom, const int offset, char **buffer, int *jumpDest);
 
 #ifdef __cplusplus
 }
