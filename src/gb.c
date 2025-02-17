@@ -107,10 +107,9 @@ uint8_t getMem8(uint16_t addr)
         // High RAM
         return hram.contents[addr&0x007F];
 
-    } else if( addr == 0xFFFF ) {
+    } else /*( addr == 0xFFFF )*/ {
         // Interrupt Enable
         return 0x42; // TODO
-
     }
 }
 

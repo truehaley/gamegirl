@@ -69,7 +69,7 @@ void disassembleRom(RomImage * const rom)
     }
 }
 
-const char * const aluDecode[] = {
+static const char * const aluDecode[] = {
     "ADD ",
     "ADC ",
     "SUB ",
@@ -80,7 +80,7 @@ const char * const aluDecode[] = {
     "CP  ",
 };
 
-const char * const bitopDecode[] = {
+static const char * const bitopDecode[] = {
     "RLCA",
     "RRCA",
     "RLA ",
@@ -90,7 +90,7 @@ const char * const bitopDecode[] = {
     "SCF ",
     "CCF ",
 };
-const char * const pfx0Decode[] = {
+static const char * const pfx0Decode[] = {
     "RLC ",
     "RRC ",
     "RL  ",
@@ -101,7 +101,7 @@ const char * const pfx0Decode[] = {
     "SRL ",
 };
 
-const char * const r8Decode[] = {
+static const char * const r8Decode[] = {
     "B",
     "C",
     "D",
@@ -112,28 +112,28 @@ const char * const r8Decode[] = {
     "A",
 };
 
-const char * const r16Decode[] = {
+static const char * const r16Decode[] = {
     "BC",
     "DE",
     "HL",
     "SP",
 };
 
-const char * const r16StkDecode[] = {
+static const char * const r16StkDecode[] = {
     "BC",
     "DE",
     "HL",
     "AF",
 };
 
-const char * const r16MemDecode[] = {
+static const char * const r16MemDecode[] = {
     "BC",
     "DE",
     "HL+",
     "HL-",
 };
 
-const char * const condDecode[] = {
+static const char * const condDecode[] = {
     "NZ",
     "Z",
     "NC",

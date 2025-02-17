@@ -73,13 +73,16 @@ extern "C" {
 #define INST_COND_EXTRACT(instr)  ((instr & INST_COND_MASK) >> INST_COND_SHFT)
 
 #define MEM_IMM16_EXTRACT(mem, offset)  ((mem[offset+2]<<8)|mem[offset+1])
-#define MEM_IMM8_OFFSET_TO_ADDR(mem, offset)  (((int16_t)offset)+((int8_t)memory[offset+1])+2)
-#define MEM_IMM8_H_TO_ADDR(mem, offset)  (0xFF00+memory[offset+1])
+#define MEM_IMM8_OFFSET_TO_ADDR(mem, offset)  (((int16_t)offset)+((int8_t)mem[offset+1])+2)
+#define MEM_IMM8_H_TO_ADDR(mem, offset)  (0xFF00+mem[offset+1])
 
 void guiDrawCpuState(void);
 void resetCpu(void);
 void executeInstruction(void);
 bool breakpoint(void);
+
+int disassemble2(char *buff, const uint8_t code[3], const int16_t addr);
+int instructionSize(const uint8_t instruction);
 
 void preprocessRom(RomImage * const rom, int offset);
 void disassembleRom(RomImage * const rom);
