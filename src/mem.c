@@ -16,6 +16,7 @@ struct {
     };
     float lines;
     const char *name;
+    uint16_t addrOffset;
     int highlight_offset;
     int highlight_length;
     Vector2 scrollPosition;
@@ -81,7 +82,7 @@ static void guiDrawRomLine(Vector2 anchor, int view, int lineNum)
     anchor.y += 1;
 
     // line header
-    DrawTextEx(firaFont, TextFormat("%04X |", offset),  anchor, FONTSIZE, 0, BLACK);
+    DrawTextEx(firaFont, TextFormat("%04X |", offset + memView[view].addrOffset),  anchor, FONTSIZE, 0, BLACK);
     anchor.x += (FONTWIDTH*7);
 
     for(int index=0; offset < maxOffset; index++, offset++) {
@@ -144,7 +145,7 @@ static void guiDrawRamLine(Vector2 anchor, int view, int lineNum)
     anchor.y += 1;
 
     // line header
-    DrawTextEx(firaFont, TextFormat("%04X |", offset),  anchor, FONTSIZE, 0, BLACK);
+    DrawTextEx(firaFont, TextFormat("%04X |", offset + memView[view].addrOffset),  anchor, FONTSIZE, 0, BLACK);
     anchor.x += (FONTWIDTH*7);
 
     for(int index=0; offset < maxOffset; index++, offset++) {
@@ -158,24 +159,26 @@ static void guiDrawRamLine(Vector2 anchor, int view, int lineNum)
     }
 }
 
-void addRomView(RomImage *rom, const char * const name)
+void addRomView(RomImage *rom, const char * const name, uint16_t addrOffset)
 {
     memView[numViews].type = ROM_VIEW;
     memView[numViews].rom = rom;
     memView[numViews].lines = (float)rom->size / BYTES_PER_LINE;
     memView[numViews].name = name;
+    memView[numViews].addrOffset = addrOffset;
     memView[numViews].highlight_length = 0;
     memView[numViews].lineDrawFunction = guiDrawRomLine;
     numViews++;
     updateMemViewNames();
 }
 
-void addRamView(RamImage *ram, const char * const name)
+void addRamView(RamImage *ram, const char * const name, uint16_t addrOffset)
 {
     memView[numViews].type = RAM_VIEW;
     memView[numViews].ram = ram;
     memView[numViews].lines = (float)ram->size / BYTES_PER_LINE;
     memView[numViews].name = name;
+    memView[numViews].addrOffset = addrOffset;
     memView[numViews].highlight_length = 0;
     memView[numViews].lineDrawFunction = guiDrawRamLine;
     numViews++;

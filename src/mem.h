@@ -42,8 +42,8 @@ typedef enum {
     REG_VIEW,
 } memViewType;
 
-void addRomView(RomImage *rom, const char * const name);
-void addRamView(RamImage *ram, const char * const name);
+void addRomView(RomImage *rom, const char * const name, uint16_t addrOffset);
+void addRamView(RamImage *ram, const char * const name, uint16_t addrOffset);
 void setMemViewHighlight(int viewNum, int offset, int length);
 void guiDrawMemView(void);
 void dumpMemory(const uint8_t * const src, const int size);

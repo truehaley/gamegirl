@@ -93,7 +93,7 @@ void gui(void)
         int activeView=0;
         bool showContentArea = true;
 
-    int instructionsPerTab = 10;
+    int instructionsPerTab = 100;
     bool running=false;
 
     // game loop

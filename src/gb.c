@@ -26,26 +26,26 @@ void gbInit(const char * const cartFilename)
         exit(1);
     }
     preprocessRom(&bootrom, BOOTROM_ENTRY);
-    addRomView(&bootrom, "BOOT");
+    addRomView(&bootrom, "BOOT", 0x0000);
     printf("SUCCESS\n");
 
     if( NULL != cartFilename ) {
         if( SUCCESS != loadCartridge(&cartridge, cartFilename)) {
             exit(0);
         }
-        addRomView(&cartridge.rom, "CART");
+        addRomView(&cartridge.rom, "CART", 0x0000);
         cartridgeInserted = true;
     } else {
         cartridge.getCartMappedRom8 = getNoCartRom8;
     }
 
 
-    allocateRam(&wram, 8192);
-    addRamView(&wram, "WRAM");
     allocateRam(&vram, 8192);
-    addRamView(&vram, "VRAM");
+    addRamView(&vram, "VRAM", 0x8000);
+    allocateRam(&wram, 8192);
+    addRamView(&wram, "WRAM", 0xC000);
     allocateRam(&hram, 0x80);
-    addRamView(&hram, "HRAM");
+    addRamView(&hram, "HRAM", 0xFF80);
 
     resetCpu();
 }
@@ -133,6 +133,9 @@ uint8_t getMem8(uint16_t addr)
                 return 0x42; // TODO
             } else if( addr >= 0xFF00 && addr <= 0xFF7F ) {
                 // IO Regs
+                if( 0xFF50 == addr ) {
+                    return (bootRomActive)? 0:1;
+                }
                 return 0x90; // TODO
             } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
                 // High RAM
@@ -143,6 +146,8 @@ uint8_t getMem8(uint16_t addr)
             }
     }
 }
+
+uint8_t sb, sc;
 
 void setMem8(uint16_t addr, uint8_t val8)
 {
@@ -182,6 +187,15 @@ void setMem8(uint16_t addr, uint8_t val8)
                 return; // TODO
             } else if( addr >= 0xFF00 && addr <= 0xFF7F ) {
                 // IO Regs
+                if( 0xFF01 == addr ) {
+                    sb = val8;
+                } else if (0xFF02 == addr) {
+                    if( val8 & 0x80 ) {
+                        printf("%c", sb);
+                    }
+                } else if( 0xFF50 == addr ) {
+                    bootRomActive = (0 == val8);
+                }
                 return; // TODO
             } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
                 // High RAM
