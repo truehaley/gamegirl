@@ -1,3 +1,4 @@
+#include "cartridge.h"
 #include "gb.h"
 
 const OldLicenseeDecoder oldLicensees[] = {
@@ -217,15 +218,152 @@ const NewLicenseeDecoder newLicensees[] = {
     { .code.ascii = {'D', 'K'},    .name = "Kodansha " },
 };
 
+class CartridgeMapper {
+    protected:
+        const Cartridge *cart;
+        const uint32_t romAddrMask;
+        const uint32_t ramAddrMask;
+    public:
+        CartridgeMapper(Cartridge *cart)
+        : cart(cart),
+          romAddrMask{cart->romSize-1},
+          ramAddrMask{cart->ramSize-1} {};
+        virtual uint8_t getRom8(uint16_t addr) = 0;
+        virtual void setRom8(uint16_t addr, uint8_t val8) = 0;
+        virtual uint8_t getRam8(uint16_t addr) = 0;
+        virtual void setRam8(uint16_t addr, uint8_t val8) = 0;
+};
+
+class NoCart : public CartridgeMapper {
+    public:
+        NoCart(Cartridge *cart) : CartridgeMapper(cart) {};
+        uint8_t getRom8(uint16_t addr) { return 0xFF; }
+        void setRom8(uint16_t addr, uint8_t val8) { return; }
+        uint8_t getRam8(uint16_t addr) { return 0xFF; }
+        void setRam8(uint16_t addr, uint8_t val8) { return; }
+};
+
+class NoMapper : public CartridgeMapper {
+    public:
+        NoMapper(Cartridge *cart) : CartridgeMapper(cart) {};
+        uint8_t getRom8(uint16_t addr) {
+            return cart->rom.contents[(addr & 0x7FFF)];
+        }
+        void setRom8(uint16_t addr, uint8_t val8) {
+            return;
+        }
+        uint8_t getRam8(uint16_t addr) {
+            if( 0 < cart->ramSize ) {
+                return cart->ram.contents[(addr & 0x1FFF)];
+            } else {
+                return 0xFF;
+            }
+        }
+        void setRam8(uint16_t addr, uint8_t val8) {
+            if( 0 < cart->ramSize ) {
+                cart->ram.contents[(addr & 0x1FFF)] = val8;
+            }
+        }
+};
+
+class MBC1Mapper : public CartridgeMapper {
+    protected:
+        bool RamEnabled = false;
+        uint8_t romBankReg = 0;
+        uint32_t lowerRomMappedAddr = 0;
+        uint32_t upperRomMappedAddr = 0;
+        uint8_t ramBankReg = 0;
+        uint32_t ramMappedAddr = 0;
+        bool advancedBanking = false;
+
+        void configMappedAddrs(void) {
+            if(advancedBanking) {
+                lowerRomMappedAddr = 0;
+                ramMappedAddr = 0;
+            } else {
+                lowerRomMappedAddr = ((ramBankReg << 18) & romAddrMask);
+                ramMappedAddr = (ramBankReg << 12) & ramAddrMask;
+            }
+            upperRomMappedAddr = ( ((ramBankReg << 18) | (romBankReg << 13)) & romAddrMask);
+        }
+
+    public:
+        MBC1Mapper(Cartridge *cart) : CartridgeMapper(cart) {};
+
+        uint8_t getRom8(uint16_t addr) {
+            if( addr <= 0x3FFF ) {
+                // ROM is guaranteed to always be at least this size
+                return cart->rom.contents[lowerRomMappedAddr + (addr & 0x3FFF)];
+            } else {
+                return cart->rom.contents[upperRomMappedAddr + (addr & 0x7FFF)];
+            }
+        }
+
+        void setRom8(uint16_t addr, uint8_t val8) {
+            switch( (addr & 0x6000) >> 13 ) {
+                case 0: // 0x0000 - 0x1FFF
+                    // RAM Enable
+                    if( (0x0A == val8) && (cart->ramSize > 0) ) {
+                        RamEnabled = true;
+                    } else {
+                        RamEnabled = false;
+                    }
+                    break;
+
+                case 1: // 0x2000 - 0x3FFF
+                    // ROM Bank
+                    romBankReg = val8 & 0x1F;
+                    configMappedAddrs();
+                    break;
+
+                case 2: // 0x4000 - 0x5FFF
+                    // RAM Bank
+                    ramBankReg = val8 & 0x03;
+                    configMappedAddrs();
+                    break;
+
+                case 3: // 0x6000 - 0x7FFF
+                    // Banking Mode
+                    advancedBanking = ( 0x01 == (val8 &0x01) );
+                    configMappedAddrs();
+                    break;
+            }
+        }
+
+        uint8_t getRam8(uint16_t addr) {
+            if( 0 < cart->ramSize ) {
+                return cart->ram.contents[ramMappedAddr + (addr & 0x1FFF)];
+            } else {
+                return 0xFF;
+            }
+        }
+
+        void setRam8(uint16_t addr, uint8_t val8) {
+            if( 0 < cart->ramSize ) {
+                cart->ram.contents[ramMappedAddr + (addr & 0x1FFF)] = val8;
+            }
+        }
+};
 
 
-Status loadCartridge(Cartridge * const cart, const char * const filename)
+Cartridge cartridge = {0};
+CartridgeMapper *mapper = nullptr;
+bool cartridgeInserted = false;
+
+Status loadCartridge(const char * const filename)
 {
     RomImage *rom;
     uint8_t checksum = 0;
+    Cartridge *cart = &cartridge;
 
     memset(cart, 0, sizeof(Cartridge));
     rom = &(cart->rom);
+
+    if( NULL == cart ) {
+        printf("No Cartridge Inserted\n");
+        mapper = new NoCart(cart);
+        return SUCCESS;
+    }
 
     printf("Loading Cartridge ROM \'%s\'...\n", filename);
     if( SUCCESS != loadRom(rom, filename, CARTRIDGE_ENTRY) ) {
@@ -294,6 +432,7 @@ Status loadCartridge(Cartridge * const cart, const char * const filename)
     printf("    ram size...");
     switch(cart->header->ramSize) {
         case CART_RAM_2K:
+            // not actually a valid value, but somtimes used in homebrew roms
             cart->ramSize = 0;
             break;
         case CART_RAM_8K:
@@ -314,15 +453,31 @@ Status loadCartridge(Cartridge * const cart, const char * const filename)
             break;
     }
     printf("%dK\n", cart->ramSize/1024);
+    if( 0 < cart->ramSize ) {
+        allocateRam(&cart->ram, cart->ramSize);
+        addRamView(&cart->ram, "CRAM", 0xA000);
+    }
 
     printf("    mapper...");
-    if(0 != cart->header->cartridgeType) {
-        printf("UNKNOWN\n");
-    } else {
-        printf("NONE\n");
+    switch(cart->header->cartridgeType) {
+        case 0:
+            printf("NONE\n");
+            mapper = new NoMapper(cart);
+            break;
+        case 1:
+        case 2:
+        case 3:
+            printf("MBC1\n");
+            mapper = new MBC1Mapper(cart);
+            break;
+        default:
+            printf("UNKNOWN (0x%02X)\n",cart->header->cartridgeType);
+            break;
     }
 
     preprocessRom(rom, CARTRIDGE_ENTRY);
+    addRomView(&cartridge.rom, "CART", 0x0000);
+    cartridgeInserted = true;
 
     printf("...Success\n");
     return SUCCESS;
@@ -331,8 +486,34 @@ failure:
     return FAILURE;
 }
 
-void unloadCartridge(Cartridge * const cart)
+void unloadCartridge()
 {
-    unloadRom(&cart->rom);
-    memset(cart, 0, sizeof(Cartridge));
+    if(cartridgeInserted) {
+        unloadRom(&cartridge.rom);
+        if( 0 < cartridge.ramSize ) {
+            deallocateRam(&cartridge.ram);
+        }
+        memset(&cartridge, 0, sizeof(Cartridge));
+        cartridgeInserted = false;
+    }
+}
+
+uint8_t getCartRom8(uint16_t addr)
+{
+    return mapper->getRom8(addr);
+}
+
+void setCartRom8(uint16_t addr, uint8_t val8)
+{
+    mapper->setRom8(addr, val8);
+}
+
+uint8_t getCartRam8(uint16_t addr)
+{
+    return mapper->getRam8(addr);
+}
+
+void setCartRam8(uint16_t addr, uint8_t val8)
+{
+    mapper->setRom8(addr, val8);
 }

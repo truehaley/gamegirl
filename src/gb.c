@@ -5,16 +5,10 @@ unsigned int mainClock = 0;
 RomImage bootrom;
 bool bootRomActive = true;
 
-Cartridge cartridge = {0};
-bool cartridgeInserted = false;
-
 RamImage wram;
 RamImage vram;
 RamImage hram;
 
-uint8_t getNoCartRom8(uint16_t addr){
-    return 0xAA;
-}
 
 void gbInit(const char * const cartFilename)
 {
@@ -29,16 +23,9 @@ void gbInit(const char * const cartFilename)
     addRomView(&bootrom, "BOOT", 0x0000);
     printf("SUCCESS\n");
 
-    if( NULL != cartFilename ) {
-        if( SUCCESS != loadCartridge(&cartridge, cartFilename)) {
-            exit(0);
-        }
-        addRomView(&cartridge.rom, "CART", 0x0000);
-        cartridgeInserted = true;
-    } else {
-        cartridge.getCartMappedRom8 = getNoCartRom8;
+    if( SUCCESS != loadCartridge(cartFilename)) {
+        exit(0);
     }
-
 
     allocateRam(&vram, 8192);
     addRamView(&vram, "VRAM", 0x8000);
@@ -53,9 +40,7 @@ void gbInit(const char * const cartFilename)
 void gbDeinit(void)
 {
     unloadRom(&bootrom);
-    if(cartridgeInserted) {
-        unloadCartridge(&cartridge);
-    }
+    unloadCartridge();
     deallocateRam(&wram);
     deallocateRam(&vram);
 
@@ -63,21 +48,6 @@ void gbDeinit(void)
 void cpuCycles(int cycles)
 {
     mainClock +=MAIN_CLOCKS_PER_CPU_CYCLE;
-}
-
-
-uint8_t getCartBank0Mem8(uint16_t addr)
-{
-    if (cartridgeInserted) {
-        return cartridge.rom.contents[addr];
-    } else {
-        return getNoCartRom8(addr);
-    }
-}
-
-uint8_t getCartMem8(uint16_t addr)
-{
-    return cartridge.getCartMappedRom8(addr);
 }
 
 //0000	3FFF	16 KiB ROM bank 00	From cartridge, usually a fixed bank
@@ -95,55 +65,52 @@ uint8_t getCartMem8(uint16_t addr)
 
 uint8_t getMem8(uint16_t addr)
 {
-    switch( (addr&0xF000) >> 12 ) {
-        case 0x0:  // ROM Bank 0
-            if(addr < 0x00100 && bootRomActive) {
-                return bootrom.contents[addr];
-            } else {
-                return getCartBank0Mem8(addr);
-            }
-        case 0x1:   // ROM Bank 0
-        case 0x2:   // ROM Bank 0
-        case 0x3:   // ROM Bank 0
-            return getCartBank0Mem8(addr);
-        case 0x4:   // ROM Bank n
-        case 0x5:   // ROM Bank n
-        case 0x6:   // ROM Bank n
-        case 0x7:   // ROM Bank n
-            return getCartMem8(addr);
-        case 0x8:   // VRAM
-        case 0x9:   // VRAM
-            return vram.contents[addr&0x1FFF];
-        case 0xA:   // CARTRIDGE RAM
-        case 0xB:   // CARTRIGDE RAM
-            return 0xA;
-        case 0xC:   // WORK RAM
-        case 0xD:   // WORK RAM
-            return wram.contents[addr&0x1FFF];
-        case 0xE:   // ECHO RAM
-        case 0xF:   // MISC
-            if( addr >= 0xE000 && addr <= 0xFDFF ) {
-                // ECHO RAM
-                return wram.contents[addr&0x1FFF];
-            } else if( addr >= 0xFE00 && addr <= 0xFE9F ) {
-                // OAM
-                return 0x42; // TODO
-            } else if( addr >= 0xFEA0 && addr <= 0xFEFF ) {
-                // Prohibited
-                return 0x42; // TODO
-            } else if( addr >= 0xFF00 && addr <= 0xFF7F ) {
-                // IO Regs
-                if( 0xFF50 == addr ) {
-                    return (bootRomActive)? 0:1;
-                }
-                return 0x90; // TODO
-            } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
-                // High RAM
-                return hram.contents[addr&0x007F];
-            } else if( addr == 0xFFFF ) {
-                // Interrupt Enable
-                return 0x42; // TODO
-            }
+    if(addr < 0x00100 && bootRomActive) {
+        return bootrom.contents[addr];
+
+    } else if( addr < 0x7FFF ) {
+        // ROM Bank 0-n
+        return getCartRom8(addr&0x7FFF);
+
+    } else if( addr >= 0x8000 && addr <= 0x9FFF) {
+        // VRAM
+        return vram.contents[addr&0x1FFF];
+
+    } else if( addr >= 0xA000 && addr <= 0xBFFF) {
+        // CARTRIDGE RAM
+        return getCartRam8(addr&0x1FFF);
+
+    } else if( addr >= 0xC000 && addr <= 0xDFFF) {
+        // WORK RAM
+        return wram.contents[addr&0x1FFF];
+
+    } else if( addr >= 0xE000 && addr <= 0xFDFF ) {
+        // ECHO RAM
+        return wram.contents[addr&0x1FFF];
+
+    } else if( addr >= 0xFE00 && addr <= 0xFE9F ) {
+        // OAM
+        return 0x42; // TODO
+
+    } else if( addr >= 0xFEA0 && addr <= 0xFEFF ) {
+        // Prohibited
+        return 0x42; // TODO
+
+    } else if( addr >= 0xFF00 && addr <= 0xFF7F ) {
+        // IO Regs
+        if( 0xFF50 == addr ) {
+            return (bootRomActive)? 0:1;
+        }
+        return 0x90; // TODO
+
+    } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
+        // High RAM
+        return hram.contents[addr&0x007F];
+
+    } else if( addr == 0xFFFF ) {
+        // Interrupt Enable
+        return 0x42; // TODO
+
     }
 }
 
@@ -151,59 +118,54 @@ uint8_t sb, sc;
 
 void setMem8(uint16_t addr, uint8_t val8)
 {
-    switch( (addr&0xF000) >> 12 ) {
-        case 0x0:   // ROM Bank 0
-        case 0x1:   // ROM Bank 0
-        case 0x2:   // ROM Bank 0
-        case 0x3:   // ROM Bank 0
-            return;
-        case 0x4:   // ROM Bank n
-        case 0x5:   // ROM Bank n
-        case 0x6:   // ROM Bank n
-        case 0x7:   // ROM Bank n
-            return;
-        case 0x8:   // VRAM
-        case 0x9:   // VRAM
-            vram.contents[addr&0x1FFF]=val8;
-            return;
-        case 0xA:   // CARTRIDGE RAM
-        case 0xB:   // CARTRIDGE RAM
-            return;
-        case 0xC:   // WORK RAM
-        case 0xD:   // WORK RAM
-            wram.contents[addr&0x1FFF]=val8;
-            return;
-        case 0xE:   // ECHO RAM
-        case 0xF:   // MISC
-            if( addr >= 0xE000 && addr <= 0xFDFF ) {
-                // ECHO RAM
-                wram.contents[addr&0x1FFF]=val8;
-                return;
-            } else if( addr >= 0xFE00 && addr <= 0xFE9F ) {
-                // OAM
-                return; // TODO
-            } else if( addr >= 0xFEA0 && addr <= 0xFEFF ) {
-                // Prohibited
-                return; // TODO
-            } else if( addr >= 0xFF00 && addr <= 0xFF7F ) {
-                // IO Regs
-                if( 0xFF01 == addr ) {
-                    sb = val8;
-                } else if (0xFF02 == addr) {
-                    if( val8 & 0x80 ) {
-                        printf("%c", sb);
-                    }
-                } else if( 0xFF50 == addr ) {
-                    bootRomActive = (0 == val8);
-                }
-                return; // TODO
-            } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
-                // High RAM
-                hram.contents[addr&0x007F] = val8;
-            } else if( addr == 0xFFFF ) {
-                // Interrupt Enable
-                return; // TODO
+    if( addr < 0x7FFF ) {
+        // ROM Bank 0-n
+        setCartRom8(addr & 0x7FFF, val8);
+    } else if( addr >= 0x8000 && addr <= 0x9FFF) {
+        // VRAM
+        vram.contents[addr&0x1FFF] = val8;
+
+    } else if( addr >= 0xA000 && addr <= 0xBFFF) {
+        // CARTRIDGE RAM
+        setCartRam8(addr&0x1FFF, val8);
+
+    } else if( addr >= 0xC000 && addr <= 0xDFFF) {
+        // WORK RAM
+        wram.contents[addr&0x1FFF] = val8;
+
+    } else if( addr >= 0xE000 && addr <= 0xFDFF ) {
+        // ECHO RAM
+        wram.contents[addr&0x1FFF] = val8;
+
+    } else if( addr >= 0xFE00 && addr <= 0xFE9F ) {
+        // OAM
+        return; // TODO
+
+    } else if( addr >= 0xFEA0 && addr <= 0xFEFF ) {
+        // Prohibited
+        return; // TODO
+
+    } else if( addr >= 0xFF00 && addr <= 0xFF7F ) {
+        // IO Regs
+        // TODO
+        if( 0xFF01 == addr ) {
+            sb = val8;
+        } else if (0xFF02 == addr) {
+            if( val8 & 0x80 ) {
+                printf("%c", sb);
             }
+        } else if( 0xFF50 == addr ) {
+            bootRomActive = (0 == val8);
+        }
+
+    } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
+        // High RAM
+        hram.contents[addr&0x007F] = val8;
+
+    } else if( addr == 0xFFFF ) {
+        // Interrupt Enable
+        // TODO
+
     }
 }
 

@@ -161,17 +161,22 @@ typedef uint8_t (mapperGetRom8)(uint16_t addr);
 
 typedef struct {
     RomImage rom;
+    RamImage ram;
     CartridgeHeader const *header;
     char const *licensee;
     uint8_t cgbMode;
     uint32_t romSize;
     uint32_t ramSize;
-    mapperGetRom8 *getCartMappedRom8;
 } Cartridge;
 
 
-Status loadCartridge(Cartridge * const cart, const char * const filename);
-void unloadCartridge(Cartridge * const cart);
+Status loadCartridge(const char * const filename);
+void unloadCartridge();
+
+uint8_t getCartRom8(uint16_t addr);
+void setCartRom8(uint16_t addr, uint8_t val8);
+uint8_t getCartRam8(uint16_t addr);
+void setCartRam8(uint16_t addr, uint8_t val8);
 
 
 
