@@ -37,10 +37,13 @@ extern "C" {
 
 typedef enum {
     NO_VIEW = 0,
+    MEM_VIEW,  // as seen by CPU
     ROM_VIEW,
     RAM_VIEW,
     REG_VIEW,
 } memViewType;
+
+void memInit(void);
 
 void addRomView(RomImage *rom, const char * const name, uint16_t addrOffset);
 void addRamView(RamImage *ram, const char * const name, uint16_t addrOffset);

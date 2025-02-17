@@ -159,6 +159,30 @@ static void guiDrawRamLine(Vector2 anchor, int view, int lineNum)
     }
 }
 
+static void guiDrawCpuMemLine(Vector2 anchor, int view, int lineNum)
+{
+    int offset = lineNum * BYTES_PER_LINE;
+    if( offset >= 65536) {
+        return;
+    }
+    const int maxOffset = MIN(offset + BYTES_PER_LINE, 65536);
+    anchor.y += 1;
+
+    // line header
+    DrawTextEx(firaFont, TextFormat("%04X |", offset),  anchor, FONTSIZE, 0, BLACK);
+    anchor.x += (FONTWIDTH*7);
+
+    for(int index=0; offset < maxOffset; index++, offset++) {
+        uint8_t data = getMem8(offset);
+        DrawTextEx(firaFont, TextFormat("%02X", data), anchor, FONTSIZE, 0, BLACK);
+        anchor.x += FONTWIDTH*3;
+        if( (BYTES_PER_LINE/2-1) == index ) {
+            DrawTextEx(firaFont, ":",  anchor, FONTSIZE, 0, BLACK);
+            anchor.x += FONTWIDTH*2;
+        }
+    }
+}
+
 void addRomView(RomImage *rom, const char * const name, uint16_t addrOffset)
 {
     memView[numViews].type = ROM_VIEW;
@@ -184,7 +208,6 @@ void addRamView(RamImage *ram, const char * const name, uint16_t addrOffset)
     numViews++;
     updateMemViewNames();
 }
-
 
 void guiDrawMemView(void)
 {
@@ -280,4 +303,13 @@ void memInit(void)
 {
     memset(memView, 0, sizeof(memView));
     memset(memViewNames, 0, sizeof(memViewNames));
+
+    // Add main cpu memory view
+    memView[0].type = MEM_VIEW;
+    memView[0].lines = (float)65536 / BYTES_PER_LINE;
+    memView[0].name = "MEM";
+    memView[0].highlight_length = 0;
+    memView[0].lineDrawFunction = guiDrawCpuMemLine;
+    numViews++;
+    updateMemViewNames();
 }

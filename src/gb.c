@@ -14,6 +14,8 @@ void gbInit(const char * const cartFilename)
 {
     mainClock = 0;
 
+    memInit();
+
     printf("Loading Boot ROM...");
     if(SUCCESS != loadRom(&bootrom, "Resources/ROMs/DMG_ROM.bin", BOOTROM_ENTRY)) {
         printf("ERROR\n");
@@ -152,6 +154,7 @@ void setMem8(uint16_t addr, uint8_t val8)
         } else if (0xFF02 == addr) {
             if( val8 & 0x80 ) {
                 printf("%c", sb);
+                fflush(stdout);
             }
         } else if( 0xFF50 == addr ) {
             bootRomActive = (0 == val8);
