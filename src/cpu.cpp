@@ -47,11 +47,6 @@ static struct __attribute__((packed)) {
 
 static uint8_t nextInstruction = 0; // start with NOP at boot
 
-bool breakpoint(void)
-{
-    return (0x00ff == regs.PC);
-}
-
 void resetCpu(void)
 {
     memset(&regs, 0, sizeof(regs));
@@ -351,6 +346,7 @@ static void add_hl_r16(uint8_t instruction)
     uint32_t val16 = getReg16(r16);
     uint32_t result = val16 + regs.HL;
     uint16_t halfResult = (val16 & 0x0FFF) + (regs.HL & 0x0FFF);
+    regs.HL = (uint16_t)result;
     // Takes an extra cycle since this is executed as 2 separate 8 bit adds
     cpuCycles(1);
     // zero flag not affected
@@ -419,7 +415,7 @@ static void dec_r8(uint8_t instruction)
     uint8_t halfResult = (v8&0xF)-1;
     setReg8(r8_a, result);
     regs.flags.zero = (0==result)?1:0;
-    regs.flags.sub = 0;
+    regs.flags.sub = 1;
     regs.flags.halfCarry = (0x0010&halfResult)>>4;
     // carry not affected
 }
@@ -524,20 +520,24 @@ static void daa(uint8_t instruction)
 {
     // DAA
     uint8_t adj;
-    int16_t result16 = regs.A;
     if(regs.flags.sub) {
         adj = (regs.flags.halfCarry)? 0x06 : 0x00;
         adj += (regs.flags.carry)? 0x60 : 0x00;
-        result16 -= adj;
+        regs.A -= adj;
     } else {
         adj = ((regs.flags.halfCarry) || ((regs.A&0x0F) > 0x09))? 0x06 : 0x00;
-        adj += ((regs.flags.carry) || (regs.A>0x99)) ? 0x60 : 0x00;
-        result16 += adj;
+        if( (regs.flags.carry) || (regs.A>0x99) ) {
+            adj += 0x60;
+            regs.A += adj;
+            regs.flags.carry = 1;
+        } else {
+            regs.A += adj;
+        }
     }
     regs.flags.zero = (0 == regs.A)?1:0;
     // sub flag not affected
     regs.flags.halfCarry = 0;
-    regs.flags.carry = (0x0100&result16)>>8;
+    // carry set in 1 case above, otherwise unchanged
 }
 
 static void cpl(uint8_t instruction)
@@ -663,7 +663,7 @@ static void pop_r16(uint8_t instruction)
             regs.HL = val16;
             break;
         case 3:
-            regs.AF = val16;
+            regs.AF = (val16 & 0xFFF0);
             break;
     }
     // AF affects flags, rest do not
@@ -840,14 +840,30 @@ static void add_sp_e8(uint8_t instruction)
 {
     // ADD SP, imm8
     int8_t val8 = (int8_t)readImm8();
-    uint16_t result = val8 + regs.SP;
+    uint16_t result16 = val8 + regs.SP;
+    uint16_t result8 = (val8 & 0xFF) + (regs.SP & 0x00FF);
     uint8_t halfResult = (val8 & 0x0F) + (regs.SP & 0x000F);
     cpuCycles(2);  // 16 bit addition through ALU takes extra cycle, and getting result back to SP is another
-    regs.SP = result;
+    regs.SP = result16;
     regs.flags.zero = 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = (halfResult & 0x10) >> 4;
-    regs.flags.carry = (result & 0x0100) >> 8;
+    regs.flags.carry = (result8 & 0x0100) >> 8;
+}
+
+static void ld_hl_spe8(uint8_t instruction)
+{
+    // LD HL, SP+imm8
+    int8_t val8 = (int8_t)readImm8();
+    uint16_t result16 = val8 + regs.SP;
+    uint16_t result8 = (val8 & 0xFF) + (regs.SP & 0x00FF);
+    uint8_t halfResult = (val8 & 0x0F) + (regs.SP & 0x000F);
+    cpuCycles(1);  // 16 bit add through ALU takes extra cycle
+    regs.HL = result16;
+    regs.flags.zero = 0;
+    regs.flags.sub = 0;
+    regs.flags.halfCarry = (halfResult & 0x10) >> 4;
+    regs.flags.carry = (result8 & 0x0100) >> 8;
 }
 
 static void ld_sp_hl(uint8_t instruction)
@@ -858,20 +874,6 @@ static void ld_sp_hl(uint8_t instruction)
     // no flags affected
 }
 
-static void ld_hl_spe8(uint8_t instruction)
-{
-    // LD HL, SP+imm8
-    int8_t val8 = (int8_t)readImm8();
-    uint16_t result = val8 + regs.SP;
-    uint8_t halfResult = (val8 & 0x0F) + (regs.SP & 0x000F);
-    cpuCycles(1);  // 16 bit add through ALU takes extra cycle
-    regs.HL = result;
-    regs.flags.zero = 0;
-    regs.flags.sub = 0;
-    regs.flags.halfCarry = (halfResult & 0x10) >> 4;
-    regs.flags.carry = (result & 0x0100) >> 8;
-
-}
 
 static void di(uint8_t instruction)
 {
@@ -992,7 +994,7 @@ static void prefix(uint8_t instruction)
     }
 }
 
-void executeInstruction(void)
+bool executeInstruction(const uint16_t breakpoint)
 {
     const uint8_t instruction = nextInstruction;
 
@@ -1047,5 +1049,19 @@ void executeInstruction(void)
             break;
     }
 
+    if( NULL != doctorLogFile ) {
+        extern bool bootRomActive;
+        if(!bootRomActive) {
+            // A:00 F:11 B:22 C:33 D:44 E:55 H:66 L:77 SP:8888 PC:9999 PCMEM:AA,BB,CC,DD
+            fprintf(doctorLogFile,
+                "A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
+                regs.A, regs.F, regs.B, regs.C, regs.D, regs.E, regs.H, regs.L, regs.SP, regs.PC,
+                getMem8(regs.PC), getMem8(regs.PC+1), getMem8(regs.PC+2), getMem8(regs.PC+3)
+            );
+        }
+    }
+
     nextInstruction = readMem8(regs.PC++);
+
+    return (breakpoint == (regs.PC-1));
 }

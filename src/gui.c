@@ -65,6 +65,7 @@ static void DrawStyleEditControls(void)
 }
 
 
+uint16_t systemBreakpoint = 0xFFFF;
 
 
 void gui(void)
@@ -93,7 +94,7 @@ void gui(void)
         int activeView=0;
         bool showContentArea = true;
 
-    int instructionsPerTab = 100;
+    int instructionsPerTab = 2000;
     bool running=false;
 
     // game loop
@@ -104,23 +105,22 @@ void gui(void)
         // TODO: Implement required update logic
         //----------------------------------------------------------------------------------
         if(IsKeyPressed(KEY_SPACE)) {
-            executeInstruction();
+            executeInstruction(systemBreakpoint);
             running = false;
         }
         if(IsKeyPressed(KEY_TAB) | running) {
             for(int i=0; i<instructionsPerTab; i++) {
-                executeInstruction();
-                if( breakpoint() ) {
+                if( executeInstruction(systemBreakpoint) ) {
                     running = false;
                     break;
                 }
             }
         }
         if(IsKeyPressed(KEY_UP)) {
-            instructionsPerTab+=10;
+            instructionsPerTab+= (IsKeyDown(KEY_LEFT_SHIFT))?100:10;
         }
         if(IsKeyPressed(KEY_DOWN)) {
-            instructionsPerTab-=10;
+            instructionsPerTab-= (IsKeyDown(KEY_LEFT_SHIFT))?100:10;
         }
         if(IsKeyPressed(KEY_LEFT)) {
             instructionsPerTab-=1;

@@ -87,7 +87,7 @@ static int jr_e8(char * const buff, const uint8_t instruction, const uint8_t cod
 {
     // JR imm8
     // flags ----
-    uint16_t dest = MEM_IMM8_OFFSET_TO_ADDR(code, 0);
+    uint16_t dest = addr+2 + ((int8_t)code[1]);
     return sprintf(buff, "JR   LABEL_%04X", dest);
 }
 
@@ -96,7 +96,7 @@ static int jr_cc_e8(char * const buff, const uint8_t instruction, const uint8_t 
     // JR cc, imm8
     // flags ----
     const uint8_t cond  = INST_COND_EXTRACT(instruction);
-    uint16_t dest = MEM_IMM8_OFFSET_TO_ADDR(code, 0);
+    uint16_t dest = addr+2 + ((int8_t)code[1]);
     return sprintf(buff, "JR   %s, LABEL_%04X", condDecode[cond], dest);
 }
 

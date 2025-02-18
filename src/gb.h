@@ -18,6 +18,9 @@
 extern "C" {
 #endif
 
+extern FILE *doctorLogFile;
+
+
 #define MAIN_CLOCK_HZ (4194304)
 #define MAIN_CLOCKS_PER_CPU_CYCLE   (4)
 #define CPU_CYCLE_HZ  (MAIN_CLOCK_HZ/MAIN_CLOCKS_PER_CPU_CYCLE)

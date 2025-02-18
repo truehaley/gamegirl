@@ -262,7 +262,7 @@ Status allocateRam(RamImage * const ram, const int size)
         return FAILURE;
     }
     ram->size = size;
-    memset(ram->contents, 0x42, size);
+    memset(ram->contents, 0x00, size);
     return SUCCESS;
 }
 

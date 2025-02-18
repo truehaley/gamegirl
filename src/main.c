@@ -11,8 +11,9 @@ static char argp_doc[] = "GameGirl, a GameBoy(tm) Emulator by Haley";
 static char argp_positional_doc[] = "romImage";
 // The options we understand.
 static struct argp_option argp_options[] = {
-  {"debuglog", 'd', 0,      0,  "Produce gameboy-doctor compatible logs" },
-  //{"output",   'o', "FILE", 0,  "Compile to FILE instead of immediate execution" },
+  {"foo",       'f', 0,      0,  "Boolean Test option" },
+  {"break",     'b', "ADDR", 0,  "Set Breakpoint at address [ADDR]"},
+  {"debugLog",  'd', "FILE", 0,  "Output Gameboy-Doctor compatible log to [FILE]" },
   { 0 }
 };
 
@@ -25,10 +26,10 @@ static struct argp argp_config = { argp_options, argpParser, argp_positional_doc
 struct ArgResult
 {
   char *romFilename;
-  bool debugLog;
-  //bool ast;
-  //bool quiet;
-  //char *output_file;
+  bool foo;
+  bool breakpointSet;
+  int breakpoint;
+  char *debugLog;
 };
 
 // argp callback to process a single option
@@ -40,14 +41,16 @@ static error_t argpParser(int key, char *arg, struct argp_state *state)
 
   switch (key)
     {
+    case 'f':
+      args->foo = true;
+      break;
+    case 'b':
+      args->breakpointSet = true;
+      sscanf(arg,"%x", &args->breakpoint);
+      break;
     case 'd':
-      args->debugLog = true;
+      args->debugLog = arg;
       break;
-    /*
-    case 'o':
-      args->output_file = arg;
-      break;
-    */
     case ARGP_KEY_ARG:
       args->romFilename = arg;
       break;
@@ -61,6 +64,7 @@ static error_t argpParser(int key, char *arg, struct argp_state *state)
   return 0;
 }
 
+FILE *doctorLogFile = NULL;
 
 int main(int argc, char **argv)
 {
@@ -70,9 +74,16 @@ int main(int argc, char **argv)
     // parse args
     argp_parse(&argp_config, argc, argv, 0, 0, &args);
 
-    //if(0 != args.output_file) {
-    //  printf("OUTPUT FILE = %s\n", args.output_file);
-    // }
+    if(0 != args.debugLog) {
+        printf("Enabling Gameboy-Doctor log output to '%s'\n", args.debugLog);
+        if( NULL == (doctorLogFile = fopen(args.debugLog, "w")) ) {
+            printf("Error opening debug log file!\n");
+            exit(0);
+        }
+
+    }
+
+    systemBreakpoint = (args.breakpointSet)? args.breakpoint : 0xFFFF;
 
     gbInit(args.romFilename);
 
@@ -90,5 +101,8 @@ int main(int argc, char **argv)
     gui();
 
     gbDeinit();
+    if(NULL != doctorLogFile) {
+        fclose(doctorLogFile);
+    }
     return 0;
 }

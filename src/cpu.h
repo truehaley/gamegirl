@@ -78,8 +78,7 @@ extern "C" {
 
 void guiDrawCpuState(void);
 void resetCpu(void);
-void executeInstruction(void);
-bool breakpoint(void);
+bool executeInstruction(const uint16_t breakpoint);
 
 int disassemble2(char *buff, const uint8_t code[3], const int16_t addr);
 int instructionSize(const uint8_t instruction);

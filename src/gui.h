@@ -14,6 +14,8 @@ extern "C" {
 #define FONTWIDTH       (FONTSIZE/2)
 
 extern Font firaFont;
+extern uint16_t systemBreakpoint;
+
 
 void gui(void);
 
