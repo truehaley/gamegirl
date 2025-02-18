@@ -202,7 +202,9 @@ workspace (workspaceName)
             links {"pthread", "m", "dl", "rt", "X11"}
 
         filter "system:macosx"
-            links {"OpenGL.framework", "Cocoa.framework", "IOKit.framework", "CoreFoundation.framework", "CoreAudio.framework", "CoreVideo.framework", "AudioToolbox.framework"}
+            links {"OpenGL.framework", "Cocoa.framework", "IOKit.framework", "CoreFoundation.framework", "CoreAudio.framework", "CoreVideo.framework", "AudioToolbox.framework", "argp"}
+            libdirs {"/opt/homebrew/Cellar/argp-standalone/1.5.0/lib/"}
+            includedirs {"/opt/homebrew/Cellar/argp-standalone/1.5.0/include/"}
 
         filter{}
 

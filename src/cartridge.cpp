@@ -359,7 +359,7 @@ Status loadCartridge(const char * const filename)
     memset(cart, 0, sizeof(Cartridge));
     rom = &(cart->rom);
 
-    if( NULL == cart ) {
+    if( NULL == filename ) {
         printf("No Cartridge Inserted\n");
         mapper = new NoCart(cart);
         return SUCCESS;

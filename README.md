@@ -1,3 +1,13 @@
+# GameGirl
+
+## Requires
+
+* argp-standalone (`brew install argp-standalone`)
+
+
+
+
+
 # Raylib-Quickstart
 A simple cross platform template for setting up a project with the bleeding edge raylib code.
 Works with C or C++.
@@ -95,14 +105,14 @@ If you need to build for a different OpenGL version than the default (OpenGL 3.3
 # License
 Copyright (c) 2020-2025 Jeffery Myers
 
-This software is provided "as-is", without any express or implied warranty. In no event 
+This software is provided "as-is", without any express or implied warranty. In no event
 will the authors be held liable for any damages arising from the use of this software.
 
-Permission is granted to anyone to use this software for any purpose, including commercial 
+Permission is granted to anyone to use this software for any purpose, including commercial
 applications, and to alter it and redistribute it freely, subject to the following restrictions:
 
-  1. The origin of this software must not be misrepresented; you must not claim that you 
-  wrote the original software. If you use this software in a product, an acknowledgment 
+  1. The origin of this software must not be misrepresented; you must not claim that you
+  wrote the original software. If you use this software in a product, an acknowledgment
   in the product documentation would be appreciated but is not required.
 
   2. Altered source versions must be plainly marked as such, and must not be misrepresented
