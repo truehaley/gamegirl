@@ -157,8 +157,6 @@ typedef struct {
     const char * const name;
 } NewLicenseeDecoder;
 
-typedef uint8_t (mapperGetRom8)(uint16_t addr);
-
 typedef struct {
     RomImage rom;
     RamImage ram;

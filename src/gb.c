@@ -1,4 +1,6 @@
 #include "gb.h"
+#include "cpu.h"
+#include "timer.h"
 
 unsigned int mainClock = 0;
 
@@ -37,6 +39,7 @@ void gbInit(const char * const cartFilename)
     addRamView(&hram, "HRAM", 0xFF80);
 
     resetCpu();
+    timerInit();
 }
 
 void gbDeinit(void)
@@ -47,10 +50,155 @@ void gbDeinit(void)
     deallocateRam(&vram);
 
 }
+
+void cpuCycle(void)
+{
+    timerTick();
+    mainClock +=MAIN_CLOCKS_PER_CPU_CYCLE;
+
+}
+
 void cpuCycles(int cycles)
 {
-    mainClock +=MAIN_CLOCKS_PER_CPU_CYCLE;
+    while(cycles--) {
+        cpuCycle();
+    }
 }
+
+typedef struct {
+    uint8_t (*getIo8)(uint16_t addr);
+    void (*setIo8)(uint16_t addr, uint8_t val8);
+} IoRegDispatchFuncs;
+
+IoRegDispatchFuncs ioRegDispatch[0x78] = {
+    { NULL, NULL }, // FF00
+    { NULL, NULL }, // FF01
+    { NULL, NULL }, // FF02
+    { NULL, NULL }, // FF03
+    { getTimerReg8, setTimerReg8 }, // FF04 Timer DIV
+    { getTimerReg8, setTimerReg8 }, // FF05 Timer TIMA
+    { getTimerReg8, setTimerReg8 }, // FF06 Timer TMA
+    { getTimerReg8, setTimerReg8 }, // FF07 Timer TAC
+    { NULL, NULL }, // FF08
+    { NULL, NULL }, // FF09
+    { NULL, NULL }, // FF0A
+    { NULL, NULL }, // FF0B
+    { NULL, NULL }, // FF0C
+    { NULL, NULL }, // FF0D
+    { NULL, NULL }, // FF0E
+    { getIntReg8, setIntReg8 }, // FF0F IF
+
+    { NULL, NULL }, // FF10
+    { NULL, NULL }, // FF11
+    { NULL, NULL }, // FF12
+    { NULL, NULL }, // FF13
+    { NULL, NULL }, // FF14
+    { NULL, NULL }, // FF15
+    { NULL, NULL }, // FF16
+    { NULL, NULL }, // FF17
+    { NULL, NULL }, // FF18
+    { NULL, NULL }, // FF19
+    { NULL, NULL }, // FF1A
+    { NULL, NULL }, // FF1B
+    { NULL, NULL }, // FF1C
+    { NULL, NULL }, // FF1D
+    { NULL, NULL }, // FF1E
+    { NULL, NULL }, // FF1F
+
+    { NULL, NULL }, // FF20
+    { NULL, NULL }, // FF21
+    { NULL, NULL }, // FF22
+    { NULL, NULL }, // FF23
+    { NULL, NULL }, // FF24
+    { NULL, NULL }, // FF25
+    { NULL, NULL }, // FF26
+    { NULL, NULL }, // FF27
+    { NULL, NULL }, // FF28
+    { NULL, NULL }, // FF29
+    { NULL, NULL }, // FF2A
+    { NULL, NULL }, // FF2B
+    { NULL, NULL }, // FF2C
+    { NULL, NULL }, // FF2D
+    { NULL, NULL }, // FF2E
+    { NULL, NULL }, // FF2F
+
+    { NULL, NULL }, // FF30
+    { NULL, NULL }, // FF31
+    { NULL, NULL }, // FF32
+    { NULL, NULL }, // FF33
+    { NULL, NULL }, // FF34
+    { NULL, NULL }, // FF35
+    { NULL, NULL }, // FF36
+    { NULL, NULL }, // FF37
+    { NULL, NULL }, // FF38
+    { NULL, NULL }, // FF39
+    { NULL, NULL }, // FF3A
+    { NULL, NULL }, // FF3B
+    { NULL, NULL }, // FF3C
+    { NULL, NULL }, // FF3D
+    { NULL, NULL }, // FF3E
+    { NULL, NULL }, // FF3F
+
+    { NULL, NULL }, // FF40
+    { NULL, NULL }, // FF41
+    { NULL, NULL }, // FF42
+    { NULL, NULL }, // FF43
+    { NULL, NULL }, // FF44
+    { NULL, NULL }, // FF45
+    { NULL, NULL }, // FF46
+    { NULL, NULL }, // FF47
+    { NULL, NULL }, // FF48
+    { NULL, NULL }, // FF49
+    { NULL, NULL }, // FF4A
+    { NULL, NULL }, // FF4B
+    { NULL, NULL }, // FF4C
+    { NULL, NULL }, // FF4D
+    { NULL, NULL }, // FF4E
+    { NULL, NULL }, // FF4F
+
+    { NULL, NULL }, // FF50
+    { NULL, NULL }, // FF51
+    { NULL, NULL }, // FF52
+    { NULL, NULL }, // FF53
+    { NULL, NULL }, // FF54
+    { NULL, NULL }, // FF55
+    { NULL, NULL }, // FF56
+    { NULL, NULL }, // FF57
+    { NULL, NULL }, // FF58
+    { NULL, NULL }, // FF59
+    { NULL, NULL }, // FF5A
+    { NULL, NULL }, // FF5B
+    { NULL, NULL }, // FF5C
+    { NULL, NULL }, // FF5D
+    { NULL, NULL }, // FF5E
+    { NULL, NULL }, // FF5F
+
+    { NULL, NULL }, // FF60
+    { NULL, NULL }, // FF61
+    { NULL, NULL }, // FF62
+    { NULL, NULL }, // FF63
+    { NULL, NULL }, // FF64
+    { NULL, NULL }, // FF65
+    { NULL, NULL }, // FF66
+    { NULL, NULL }, // FF67
+    { NULL, NULL }, // FF68
+    { NULL, NULL }, // FF69
+    { NULL, NULL }, // FF6A
+    { NULL, NULL }, // FF6B
+    { NULL, NULL }, // FF6C
+    { NULL, NULL }, // FF6D
+    { NULL, NULL }, // FF6E
+    { NULL, NULL }, // FF6F
+
+    { NULL, NULL }, // FF70
+    { NULL, NULL }, // FF71
+    { NULL, NULL }, // FF72
+    { NULL, NULL }, // FF73
+    { NULL, NULL }, // FF74
+    { NULL, NULL }, // FF75
+    { NULL, NULL }, // FF76
+    { NULL, NULL }, // FF77
+};
 
 //0000	3FFF	16 KiB ROM bank 00	From cartridge, usually a fixed bank
 //4000	7FFF	16 KiB ROM Bank 01–NN	From cartridxge, switchable bank via mapper (if any)
@@ -102,16 +250,22 @@ uint8_t getMem8(uint16_t addr)
         // IO Regs
         if( 0xFF50 == addr ) {
             return (bootRomActive)? 0:1;
+        } else if( addr <= 0xFF77 ) {
+            if( NULL != ioRegDispatch[addr & 0x00FF].getIo8 ) {
+                return ioRegDispatch[addr & 0x00FF].getIo8(addr);
+            } else {
+                return 0x90;
+            }
+        } else {
+            return 0xFF; // TODO what do unmapped regs return?
         }
-        return 0x90; // TODO
-
     } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
         // High RAM
         return hram.contents[addr&0x007F];
 
     } else /*( addr == 0xFFFF )*/ {
         // Interrupt Enable
-        return 0x42; // TODO
+        return getIntReg8(REG_IE_ADDR);
     }
 }
 
@@ -158,16 +312,18 @@ void setMem8(uint16_t addr, uint8_t val8)
             }
         } else if( 0xFF50 == addr ) {
             bootRomActive = (0 == val8);
+        } else if( addr <= 0xFF77 ) {
+            if( NULL != ioRegDispatch[addr & 0x00FF].setIo8 ) {
+                ioRegDispatch[addr & 0x00FF].setIo8(addr, val8);
+            }
         }
-
     } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
         // High RAM
         hram.contents[addr&0x007F] = val8;
 
-    } else if( addr == 0xFFFF ) {
+    } else /*if( addr == 0xFFFF )*/ {
         // Interrupt Enable
-        // TODO
-
+        setIntReg8(REG_IE_ADDR, val8);
     }
 }
 

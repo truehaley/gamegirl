@@ -387,7 +387,7 @@ static int add_sp_e8(char * const buff, const uint8_t instruction, const uint8_t
     if( (int8_t)code[1] > 0 ) {
         return sprintf(buff, "ADD  SP, +0x%02X", code[1]);
     } else {
-        return sprintf(buff, "ADD  SP, -0x%02X", -((int)code[1]));
+        return sprintf(buff, "ADD  SP, -0x%02X", -((int8_t)code[1]));
     }
 }
 
@@ -399,7 +399,7 @@ static int ld_hl_spe8(char * const buff, const uint8_t instruction, const uint8_
     if( (int8_t)code[1] > 0 ) {
         return sprintf(buff, "LD   HL, SP+0x%02X", code[1]);
     } else {
-        return sprintf(buff, "LD   HL, SP-0x%02X", -((int)code[1]));
+        return sprintf(buff, "LD   HL, SP-0x%02X", -((int8_t)code[1]));
     }
 }
 

@@ -12,6 +12,7 @@
 #include "mem.h"
 #include "cpu.h"
 #include "cartridge.h"
+#include "timer.h"
 
 
 #ifdef __cplusplus
@@ -25,9 +26,18 @@ extern FILE *doctorLogFile;
 #define MAIN_CLOCKS_PER_CPU_CYCLE   (4)
 #define CPU_CYCLE_HZ  (MAIN_CLOCK_HZ/MAIN_CLOCKS_PER_CPU_CYCLE)
 
+#define REG_DIV_ADDR    (0xFF04)
+#define REG_TIMA_ADDR   (0xFF05)
+#define REG_TMA_ADDR    (0xFF06)
+#define REG_TAC_ADDR    (0xFF07)
+#define REG_IF_ADDR     (0xFF0F)
+#define REG_IE_ADDR     (0xFFFF)
+
+
 void gbInit(const char * const cartFilename);
 void gbDeinit(void);
 
+void cpuCycle();
 void cpuCycles(int cycles);
 
 // get/set just access the memory.  read/write trigger cpu cycles

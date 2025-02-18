@@ -76,8 +76,21 @@ extern "C" {
 #define MEM_IMM8_OFFSET_TO_ADDR(mem, offset)  (((int16_t)offset)+((int8_t)mem[offset+1])+2)
 #define MEM_IMM8_H_TO_ADDR(mem, offset)  (0xFF00+mem[offset+1])
 
+typedef enum {
+    INT_VBLANK = 0,
+    INT_LCD    = 1,
+    INT_TIMER  = 2,
+    INT_SERIAL = 3,
+    INT_JOYPAD = 4
+} InterruptFlag;
+
+void setIntReg8(uint16_t addr, uint8_t val8);
+uint8_t getIntReg8(uint16_t addr);
+void setIntFlag(InterruptFlag interrupt);
+
 void guiDrawCpuState(void);
 void resetCpu(void);
+bool cpuStopped(void);
 bool executeInstruction(const uint16_t breakpoint);
 
 int disassemble2(char *buff, const uint8_t code[3], const int16_t addr);

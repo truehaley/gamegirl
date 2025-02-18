@@ -45,14 +45,67 @@ static struct __attribute__((packed)) {
     uint16_t PC;
 } regs;
 
+typedef struct {
+    union {
+        uint8_t val;
+        struct {
+            uint8_t vblank:1;
+            uint8_t lcd:1;
+            uint8_t timer:1;
+            uint8_t serial:1;
+            uint8_t joypad:1;
+            uint8_t reserved:3;
+        };
+    };
+} InterruptRegister;
+
+InterruptRegister ieReg = {0};
+InterruptRegister ifReg = {0};
+
+bool interruptsEnabled = false;
+bool interruptsPendingEnable = false;
+
 static uint8_t nextInstruction = 0; // start with NOP at boot
 
 void resetCpu(void)
 {
     memset(&regs, 0, sizeof(regs));
+    ieReg.val = 0;
+    ifReg.val = 0;
+    interruptsEnabled = false;
+    interruptsPendingEnable = false;
     nextInstruction = getMem8(regs.PC++);
 }
 
+void setIntReg8(uint16_t addr, uint8_t val8)
+{
+    if( REG_IE_ADDR == addr ) {
+        ieReg.val = val8;
+    } else if( REG_IF_ADDR == addr ) {
+        ifReg.val = val8;
+    }
+}
+
+uint8_t getIntReg8(uint16_t addr)
+{
+    if( REG_IE_ADDR == addr ) {
+        return ieReg.val;
+    } else if( REG_IF_ADDR == addr ) {
+        return ifReg.val;
+    }
+    return 0x00;
+}
+
+void setIntFlag(InterruptFlag interrupt)
+{
+    ifReg.val |= (0x01 << interrupt);
+}
+
+bool cpuStopped(void)
+{
+    // TODO
+    return false;
+}
 
 static void guiDrawCpuReg8(Vector2 anchor, uint8_t val8, const char * const name)
 {
@@ -315,7 +368,7 @@ static void jr_e8(uint8_t instruction)
 {
     // JR imm8
     int8_t offset = (int8_t)readImm8();
-    cpuCycles(1);   // ALU op to add the offset
+    cpuCycle();   // ALU op to add the offset
     regs.PC = offset + regs.PC;
     // no flags affected
 }
@@ -325,7 +378,7 @@ static void jr_cc_e8(uint8_t instruction)
     // JR cc, imm8
     int8_t offset = (int8_t)readImm8();
     if( checkCond(instruction) ) {
-        cpuCycles(1);   // ALU op to add the offset
+        cpuCycle();   // ALU op to add the offset
         regs.PC = offset + regs.PC;
     }
     // no flags affected
@@ -348,7 +401,7 @@ static void add_hl_r16(uint8_t instruction)
     uint16_t halfResult = (val16 & 0x0FFF) + (regs.HL & 0x0FFF);
     regs.HL = (uint16_t)result;
     // Takes an extra cycle since this is executed as 2 separate 8 bit adds
-    cpuCycles(1);
+    cpuCycle();
     // zero flag not affected
     regs.flags.sub = 0;
     regs.flags.halfCarry = (0x1000&halfResult)>>12;
@@ -377,7 +430,7 @@ static void inc_r16(uint8_t instruction)
     const uint8_t r16   = INST_R16_EXTRACT(instruction);
     setReg16(r16, getReg16(r16)+1);
     // Takes an extra cycle because the IDU is used for the increment/decrement
-    cpuCycles(1);
+    cpuCycle();
     // no flags affected
 
 }
@@ -387,7 +440,7 @@ static void dec_r16(uint8_t instruction)
     const uint8_t r16   = INST_R16_EXTRACT(instruction);
     setReg16(r16, getReg16(r16)-1);
     // Takes an extra cycle because the IDU is used for the increment/decrement
-    cpuCycles(1);
+    cpuCycle();
     // no flags affected
 
 }
@@ -694,7 +747,7 @@ static void jp_i16(uint8_t instruction)
 {
     // JP imm16
     uint16_t pc = readImm16();
-    cpuCycles(1);   // extra cycle to transfer to PC
+    cpuCycle();   // extra cycle to transfer to PC
     regs.PC = pc;
     // no flags affected
 }
@@ -704,7 +757,7 @@ static void jp_cc_i16(uint8_t instruction)
     // JP cond, imm16
     uint16_t pc = readImm16();
     if( checkCond(instruction) ) {
-        cpuCycles(1);   // extra cycle to transfer to PC
+        cpuCycle();   // extra cycle to transfer to PC
         regs.PC = pc;
     }
     // no flags affected
@@ -749,7 +802,7 @@ static void ret(uint8_t instruction)
 {
     // RET
     uint16_t pc = pop16();
-    cpuCycles(1);  // extra cycle to move to PC
+    cpuCycle();  // extra cycle to move to PC
     regs.PC = pc;
     // no flags affected
 }
@@ -757,7 +810,7 @@ static void ret(uint8_t instruction)
 static void ret_cc(uint8_t instruction)
 {
     // RET cond
-    cpuCycles(1); // takes a cycle to test conditions
+    cpuCycle(); // takes a cycle to test conditions
     if( checkCond(instruction) ) {
         ret(instruction);
     }
@@ -768,7 +821,8 @@ static void reti(uint8_t instruction)
 {
     // RETI
     ret(instruction);
-    // TODO interrupt enable
+    interruptsPendingEnable = true;
+    interruptsEnabled = true;
     // no flags affected
 }
 
@@ -858,7 +912,7 @@ static void ld_hl_spe8(uint8_t instruction)
     uint16_t result16 = val8 + regs.SP;
     uint16_t result8 = (val8 & 0xFF) + (regs.SP & 0x00FF);
     uint8_t halfResult = (val8 & 0x0F) + (regs.SP & 0x000F);
-    cpuCycles(1);  // 16 bit add through ALU takes extra cycle
+    cpuCycle();  // 16 bit add through ALU takes extra cycle
     regs.HL = result16;
     regs.flags.zero = 0;
     regs.flags.sub = 0;
@@ -870,7 +924,7 @@ static void ld_sp_hl(uint8_t instruction)
 {
     // LD SP, HL
     regs.SP = regs.HL;
-    cpuCycles(1); // Takes an extra cycle to move from SP
+    cpuCycle(); // Takes an extra cycle to move from SP
     // no flags affected
 }
 
@@ -878,14 +932,15 @@ static void ld_sp_hl(uint8_t instruction)
 static void di(uint8_t instruction)
 {
     // DI
-    // TODO
+    interruptsEnabled = false;
+    interruptsPendingEnable = false;
     // no flags affected
 }
 
 static void ei(uint8_t instruction)
 {
     // EI
-    // TODO
+    interruptsPendingEnable = true;
     // no flags affected
 }
 
@@ -996,7 +1051,7 @@ static void prefix(uint8_t instruction)
 
 bool executeInstruction(const uint16_t breakpoint)
 {
-    const uint8_t instruction = nextInstruction;
+    uint8_t instruction = nextInstruction;
 
     static doOp * const block0decode[64] = {
         nop,            ld_r16_i16,     ld_mr16_a,      inc_r16,    inc_r8,         dec_r8,     ld_r8_i8,   rlc_a,
@@ -1025,6 +1080,43 @@ bool executeInstruction(const uint16_t breakpoint)
         ldh_a_ma8,      pop_r16,        ldh_a_mc,       di,         invalid,        push_r16,   alu_i8,     rst,
         ld_hl_spe8,     ld_sp_hl,       ld_a_ma16,      ei,         invalid,        invalid,    alu_i8,     rst,
     };
+
+    // Test and handle any pending interrupts!
+    if( interruptsEnabled ) {
+        // is anything pending?
+        InterruptRegister pending;
+        pending.val = (ieReg.val & ifReg.val);
+        if(0 != pending.val) {
+            cpuCycle(); // 1 cycle to decrement PC, 1 cycle to pre-decrement SP in push below
+            push16(regs.PC-1);  // the SP pre-decrement cycle, then 2 cycles to write out PC
+            // recalculate what is pending in case anything of higher priorty fired during the last few cycles
+            pending.val = (ieReg.val & ifReg.val);
+            // handle in priority order
+            if( pending.vblank ) {
+                regs.PC = 0x40;
+                ifReg.vblank = 0;
+            } else if( pending.lcd ) {
+                regs.PC = 0x48;
+                ifReg.lcd = 0;
+            } else if( pending.timer ) {
+                regs.PC = 0x50;
+                ifReg.timer = 0;
+            } else if( pending.serial ) {
+                regs.PC = 0x58;
+                ifReg.serial = 0;
+            } else if( pending.joypad ) {
+                regs.PC = 0x60;
+                ifReg.joypad = 0;
+            }
+            instruction = readMem8(regs.PC++);
+
+            interruptsEnabled = false;
+            interruptsPendingEnable = false;
+        }
+    } else {
+        // latch any pending re-enable
+        interruptsEnabled = interruptsPendingEnable;
+    }
 
     const uint8_t block = INST_BLOCK_EXTRACT(instruction);
 
