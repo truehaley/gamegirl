@@ -64,6 +64,7 @@ InterruptRegister ifReg = {0};
 
 bool interruptsEnabled = false;
 bool interruptsPendingEnable = false;
+bool cpuHalted = false;
 
 static uint8_t nextInstruction = 0; // start with NOP at boot
 
@@ -74,6 +75,7 @@ void resetCpu(void)
     ifReg.val = 0;
     interruptsEnabled = false;
     interruptsPendingEnable = false;
+    cpuHalted = false;
     nextInstruction = getMem8(regs.PC++);
 }
 
@@ -99,6 +101,7 @@ uint8_t getIntReg8(uint16_t addr)
 void setIntFlag(InterruptFlag interrupt)
 {
     ifReg.val |= (0x01 << interrupt);
+    cpuHalted = false;
 }
 
 bool cpuStopped(void)
@@ -690,6 +693,10 @@ static void alu_r8(uint8_t instruction)
 static void halt(uint8_t instruction)
 {
     // TODO
+    if( 0 == (ifReg.val & ieReg.val) ) {
+        // only halt if nothing is pending
+        cpuHalted = true;
+    }
 }
 
 static void ld_r8_r8(uint8_t instruction)
@@ -1080,6 +1087,11 @@ bool executeInstruction(const uint16_t breakpoint)
         ldh_a_ma8,      pop_r16,        ldh_a_mc,       di,         invalid,        push_r16,   alu_i8,     rst,
         ld_hl_spe8,     ld_sp_hl,       ld_a_ma16,      ei,         invalid,        invalid,    alu_i8,     rst,
     };
+
+    if( cpuHalted ) {
+        cpuCycle();
+        return false;
+    }
 
     // Test and handle any pending interrupts!
     if( interruptsEnabled ) {

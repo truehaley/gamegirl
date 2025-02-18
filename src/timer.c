@@ -88,6 +88,7 @@ void timerTick(void)
 
     if(intPending) {
         setIntFlag(INT_TIMER);
+        intPending = false;
     }
     if( 0 == tacCycleCount-- ) {
         tacCycleCount = tacCycleReset;
