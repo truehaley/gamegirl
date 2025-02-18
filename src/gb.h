@@ -13,6 +13,7 @@
 #include "cpu.h"
 #include "cartridge.h"
 #include "timer.h"
+#include "graphics.h"
 
 
 #ifdef __cplusplus
@@ -26,11 +27,26 @@ extern FILE *doctorLogFile;
 #define MAIN_CLOCKS_PER_CPU_CYCLE   (4)
 #define CPU_CYCLE_HZ  (MAIN_CLOCK_HZ/MAIN_CLOCKS_PER_CPU_CYCLE)
 
+// Timer Regs
 #define REG_DIV_ADDR    (0xFF04)
 #define REG_TIMA_ADDR   (0xFF05)
 #define REG_TMA_ADDR    (0xFF06)
 #define REG_TAC_ADDR    (0xFF07)
+// Interrupt Regs
 #define REG_IF_ADDR     (0xFF0F)
+// LCD REGS
+#define REG_LCDL_ADDR   (0xFF40)
+#define REG_STAT_ADDR   (0xFF41)
+#define REG_SCY_ADDR    (0xFF42)
+#define REG_SCX_ADDR    (0xFF43)
+#define REG_LY_ADDR     (0xFF44)
+#define REG_LYC_ADDR    (0xFF45)
+#define REG_BGP_ADDR    (0xFF47)
+#define REG_OBP0_ADDR   (0xFF48)
+#define REG_OBP1_ADDR   (0xFF49)
+#define REG_WY_ADDR     (0xFF4A)
+#define REG_WX_ADDR     (0xFF4B)
+// Interrupt Regs
 #define REG_IE_ADDR     (0xFFFF)
 
 

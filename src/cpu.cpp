@@ -50,7 +50,7 @@ typedef struct {
         uint8_t val;
         struct {
             uint8_t vblank:1;
-            uint8_t lcd:1;
+            uint8_t stat:1;
             uint8_t timer:1;
             uint8_t serial:1;
             uint8_t joypad:1;
@@ -1107,9 +1107,9 @@ bool executeInstruction(const uint16_t breakpoint)
             if( pending.vblank ) {
                 regs.PC = 0x40;
                 ifReg.vblank = 0;
-            } else if( pending.lcd ) {
+            } else if( pending.stat ) {
                 regs.PC = 0x48;
-                ifReg.lcd = 0;
+                ifReg.stat = 0;
             } else if( pending.timer ) {
                 regs.PC = 0x50;
                 ifReg.timer = 0;

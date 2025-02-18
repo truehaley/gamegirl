@@ -40,6 +40,7 @@ void gbInit(const char * const cartFilename)
 
     resetCpu();
     timerInit();
+    graphicsInit();
 }
 
 void gbDeinit(void)
@@ -55,6 +56,7 @@ void cpuCycle(void)
 {
     timerTick();
     mainClock +=MAIN_CLOCKS_PER_CPU_CYCLE;
+    ppuCycles(MAIN_CLOCKS_PER_CPU_CYCLE);
 
 }
 
@@ -139,18 +141,30 @@ IoRegDispatchFuncs ioRegDispatch[0x78] = {
     { NULL, NULL }, // FF3E
     { NULL, NULL }, // FF3F
 
-    { NULL, NULL }, // FF40
-    { NULL, NULL }, // FF41
-    { NULL, NULL }, // FF42
-    { NULL, NULL }, // FF43
-    { NULL, NULL }, // FF44
-    { NULL, NULL }, // FF45
+    #define REG_LCDL_ADDR   (0xFF40)
+    #define REG_STAT_ADDR   (0xFF41)
+    #define REG_SCY_ADDR    (0xFF42)
+    #define REG_SCX_ADDR    (0xFF43)
+    #define REG_LY_ADDR     (0xFF44)
+    #define REG_LYC_ADDR    (0xFF45)
+    #define REG_BGP_ADDR    (0xFF47)
+    #define REG_OBP0_ADDR   (0xFF48)
+    #define REG_OBP1_ADDR   (0xFF49)
+    #define REG_WY_ADDR     (0xFF4A)
+    #define REG_WX_ADDR     (0xFF4B)
+
+    { getGfxReg8, setGfxReg8 }, // FF40 Gfx LCDL
+    { getGfxReg8, setGfxReg8 }, // FF41 Gfx STAT
+    { getGfxReg8, setGfxReg8 }, // FF42 Gfx SCY
+    { getGfxReg8, setGfxReg8 }, // FF43 Gfx SCX
+    { getGfxReg8, setGfxReg8 }, // FF44 Gfx LY
+    { getGfxReg8, setGfxReg8 }, // FF45 Gfx LYC
     { NULL, NULL }, // FF46
-    { NULL, NULL }, // FF47
-    { NULL, NULL }, // FF48
-    { NULL, NULL }, // FF49
-    { NULL, NULL }, // FF4A
-    { NULL, NULL }, // FF4B
+    { getGfxReg8, setGfxReg8 }, // FF47 Gfx BGP
+    { getGfxReg8, setGfxReg8 }, // FF48 Gfx OBP0
+    { getGfxReg8, setGfxReg8 }, // FF49 Gfx OBP1
+    { getGfxReg8, setGfxReg8 }, // FF4A Gfx WY
+    { getGfxReg8, setGfxReg8 }, // FF4B Gfx WX
     { NULL, NULL }, // FF4C
     { NULL, NULL }, // FF4D
     { NULL, NULL }, // FF4E
@@ -254,7 +268,7 @@ uint8_t getMem8(uint16_t addr)
             if( NULL != ioRegDispatch[addr & 0x00FF].getIo8 ) {
                 return ioRegDispatch[addr & 0x00FF].getIo8(addr);
             } else {
-                return 0x90;
+                return 0xFF;
             }
         } else {
             return 0xFF; // TODO what do unmapped regs return?
