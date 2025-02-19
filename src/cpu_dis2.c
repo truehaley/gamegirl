@@ -88,7 +88,7 @@ static int jr_e8(char * const buff, const uint8_t instruction, const uint8_t cod
     // JR imm8
     // flags ----
     uint16_t dest = addr+2 + ((int8_t)code[1]);
-    return sprintf(buff, "JR   LABEL_%04X", dest);
+    return sprintf(buff, "JR   %04X", dest);
 }
 
 static int jr_cc_e8(char * const buff, const uint8_t instruction, const uint8_t code[3], const uint16_t addr)
@@ -97,7 +97,7 @@ static int jr_cc_e8(char * const buff, const uint8_t instruction, const uint8_t 
     // flags ----
     const uint8_t cond  = INST_COND_EXTRACT(instruction);
     uint16_t dest = addr+2 + ((int8_t)code[1]);
-    return sprintf(buff, "JR   %s, LABEL_%04X", condDecode[cond], dest);
+    return sprintf(buff, "JR   %s, %04X", condDecode[cond], dest);
 }
 
 static int ld_r16_i16(char * const buff, const uint8_t instruction, const uint8_t code[3], const uint16_t addr)
@@ -248,7 +248,7 @@ static int jp_i16(char * const buff, const uint8_t instruction, const uint8_t co
     // JP imm16
     // flags ----
     const uint16_t dest = MEM_IMM16_EXTRACT(code, 0);
-    return sprintf(buff, "JP   LABEL_%04X", dest);
+    return sprintf(buff, "JP   %04X", dest);
 }
 
 static int jp_cc_i16(char * const buff, const uint8_t instruction, const uint8_t code[3], const uint16_t addr)
@@ -257,7 +257,7 @@ static int jp_cc_i16(char * const buff, const uint8_t instruction, const uint8_t
     // flags ----
     const uint8_t cond  = INST_COND_EXTRACT(instruction);
     const uint16_t dest = MEM_IMM16_EXTRACT(code, 0);
-    return sprintf(buff, "JP   %s, LABEL_%04X", condDecode[cond], dest);
+    return sprintf(buff, "JP   %s, %04X", condDecode[cond], dest);
 }
 
 static int jp_hl(char * const buff, const uint8_t instruction, const uint8_t code[3], const uint16_t addr)
@@ -273,7 +273,7 @@ static int call_i16(char * const buff, const uint8_t instruction, const uint8_t 
     // CALL imm16
     // flags ----
     const uint16_t dest = MEM_IMM16_EXTRACT(code, 0);
-    return sprintf(buff, "CALL LABEL_%04X", dest);
+    return sprintf(buff, "CALL %04X", dest);
 }
 
 static int call_cc_i16(char * const buff, const uint8_t instruction, const uint8_t code[3], const uint16_t addr)
@@ -282,7 +282,7 @@ static int call_cc_i16(char * const buff, const uint8_t instruction, const uint8
     // flags ----
     const uint8_t cond  = INST_COND_EXTRACT(instruction);
     const uint16_t dest = MEM_IMM16_EXTRACT(code, 0);
-    return sprintf(buff, "CALL %s, LABEL_%04X", condDecode[cond], dest);
+    return sprintf(buff, "CALL %s, %04X", condDecode[cond], dest);
 }
 
 static int rst(char * const buff, const uint8_t instruction, const uint8_t code[3], const uint16_t addr)
@@ -290,7 +290,7 @@ static int rst(char * const buff, const uint8_t instruction, const uint8_t code[
     // RST vec
     // flags ----
     const uint16_t dest = INST_RST_TGT3_EXTRACT(instruction) * 8;
-    return sprintf(buff, "RST 0x%02X (LABEL_%04X)", dest, dest);
+    return sprintf(buff, "RST 0x%02X (%04X)", dest, dest);
 }
 
 static int ret(char * const buff, const uint8_t instruction, const uint8_t code[3], const uint16_t addr)
