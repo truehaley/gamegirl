@@ -12,6 +12,7 @@
 #include "mem.h"
 #include "cpu.h"
 #include "cartridge.h"
+#include "serial.h"
 #include "timer.h"
 #include "graphics.h"
 
@@ -21,12 +22,18 @@ extern "C" {
 #endif
 
 extern FILE *doctorLogFile;
+extern bool serialConsole;
+extern bool exitOnBreak;
+extern bool running;
 
 
 #define MAIN_CLOCK_HZ (4194304)
 #define MAIN_CLOCKS_PER_CPU_CYCLE   (4)
 #define CPU_CYCLE_HZ  (MAIN_CLOCK_HZ/MAIN_CLOCKS_PER_CPU_CYCLE)
 
+// Serial Regs
+#define REG_SB_ADDR     (0xFF01)
+#define REG_SC_ADDR     (0xFF02)
 // Timer Regs
 #define REG_DIV_ADDR    (0xFF04)
 #define REG_TIMA_ADDR   (0xFF05)
@@ -49,6 +56,9 @@ extern FILE *doctorLogFile;
 // Interrupt Regs
 #define REG_IE_ADDR     (0xFFFF)
 
+// TODO what do missing/unmapped regs return?
+#define MISSING_REG_VAL  (0x00)
+#define UNMAPPED_REG_VAL (0xFF)
 
 void gbInit(const char * const cartFilename);
 void gbDeinit(void);

@@ -11,8 +11,10 @@ static char argp_doc[] = "GameGirl, a GameBoy(tm) Emulator by Haley";
 static char argp_positional_doc[] = "romImage";
 // The options we understand.
 static struct argp_option argp_options[] = {
-  {"foo",       'f', 0,      0,  "Boolean Test option" },
+  {"run",       'r', 0,      0,  "Automatically start in running state" },
+  {"console",   'c', 0,      0,  "Enable serial output to console" },
   {"break",     'b', "ADDR", 0,  "Set Breakpoint at address [ADDR]"},
+  {"exitbreak", 'e', 0,      0,  "Exit when breakpoint or hung"},
   {"debugLog",  'd', "FILE", 0,  "Output Gameboy-Doctor compatible log to [FILE]" },
   { 0 }
 };
@@ -27,8 +29,11 @@ struct ArgResult
 {
   char *romFilename;
   bool foo;
+  bool console;
   bool breakpointSet;
   int breakpoint;
+  bool exitOnBreak;
+  bool autoRun;
   char *debugLog;
 };
 
@@ -41,8 +46,14 @@ static error_t argpParser(int key, char *arg, struct argp_state *state)
 
   switch (key)
     {
-    case 'f':
-      args->foo = true;
+    case 'r':
+      args->autoRun = true;
+      break;
+    case 'c':
+      args->console = true;
+      break;
+    case 'e':
+      args->exitOnBreak = true;
       break;
     case 'b':
       args->breakpointSet = true;
@@ -65,6 +76,9 @@ static error_t argpParser(int key, char *arg, struct argp_state *state)
 }
 
 FILE *doctorLogFile = NULL;
+bool serialConsole = false;
+bool exitOnBreak = false;
+bool running = false;
 
 int main(int argc, char **argv)
 {
@@ -81,6 +95,21 @@ int main(int argc, char **argv)
             exit(0);
         }
 
+    }
+
+    if(true == args.console) {
+        printf("Serial Console Output Enabled\n");
+        serialConsole = true;
+    }
+
+    if(true == args.autoRun) {
+        printf("Processor will start in running state\n");
+        running = true;
+    }
+
+    if(true == args.exitOnBreak) {
+        printf("Will exit if breakpoint reached or processor hangs\n");
+        exitOnBreak = true;
     }
 
     systemBreakpoint = (args.breakpointSet)? args.breakpoint : 0xFFFF;

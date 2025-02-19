@@ -1,5 +1,6 @@
 #include "gb.h"
 #include "cpu.h"
+#include "gui.h"
 #include "timer.h"
 
 unsigned int mainClock = 0;
@@ -73,8 +74,8 @@ typedef struct {
 
 IoRegDispatchFuncs ioRegDispatch[0x78] = {
     { NULL, NULL }, // FF00
-    { NULL, NULL }, // FF01
-    { NULL, NULL }, // FF02
+    { getSerialReg8, setSerialReg8 }, // FF01 SB
+    { getSerialReg8, setSerialReg8 }, // FF02 SC
     { NULL, NULL }, // FF03
     { getTimerReg8, setTimerReg8 }, // FF04 Timer DIV
     { getTimerReg8, setTimerReg8 }, // FF05 Timer TIMA
@@ -255,10 +256,10 @@ uint8_t getMem8(uint16_t addr)
             if( NULL != ioRegDispatch[addr & 0x00FF].getIo8 ) {
                 return ioRegDispatch[addr & 0x00FF].getIo8(addr);
             } else {
-                return 0x00;
+                return MISSING_REG_VAL;
             }
         } else {
-            return 0xFF; // TODO what do unmapped regs return?
+            return UNMAPPED_REG_VAL;
         }
     } else if( addr >= 0xFF80 && addr <= 0xFFFE ) {
         // High RAM
@@ -269,8 +270,6 @@ uint8_t getMem8(uint16_t addr)
         return getIntReg8(REG_IE_ADDR);
     }
 }
-
-uint8_t sb, sc;
 
 void setMem8(uint16_t addr, uint8_t val8)
 {
@@ -303,15 +302,7 @@ void setMem8(uint16_t addr, uint8_t val8)
 
     } else if( addr >= 0xFF00 && addr <= 0xFF7F ) {
         // IO Regs
-        // TODO
-        if( 0xFF01 == addr ) {
-            sb = val8;
-        } else if (0xFF02 == addr) {
-            if( val8 & 0x80 ) {
-                printf("%c", sb);
-                fflush(stdout);
-            }
-        } else if( 0xFF50 == addr ) {
+        if( 0xFF50 == addr ) {
             bootRomActive = (0 == val8);
         } else if( addr <= 0xFF77 ) {
             if( NULL != ioRegDispatch[addr & 0x00FF].setIo8 ) {
