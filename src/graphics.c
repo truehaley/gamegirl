@@ -199,7 +199,12 @@ uint8_t getGfxReg8(uint16_t addr)
         case REG_SCX_ADDR:
             return regs.SCX.val;
         case REG_LY_ADDR:
-            return regs.LY.val;
+            if( NULL != doctorLogFile ) {
+                // special case when running tests
+                return 0x90;
+            } else {
+                return regs.LY.val;
+            }
         case REG_LYC_ADDR:
             return regs.LYC.val;
         case REG_BGP_ADDR:

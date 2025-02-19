@@ -800,7 +800,7 @@ static void call_cc_i16(uint8_t instruction)
 static void rst(uint8_t instruction)
 {
     // RST vec
-    push16(regs.SP);
+    push16(regs.PC);
     regs.PC = INST_RST_TGT3_EXTRACT(instruction) * 8;
     // no flags affected
 }
