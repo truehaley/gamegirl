@@ -35,7 +35,7 @@ extern FILE *doctorLogFile;
 // Interrupt Regs
 #define REG_IF_ADDR     (0xFF0F)
 // LCD REGS
-#define REG_LCDL_ADDR   (0xFF40)
+#define REG_LCDC_ADDR   (0xFF40)
 #define REG_STAT_ADDR   (0xFF41)
 #define REG_SCY_ADDR    (0xFF42)
 #define REG_SCX_ADDR    (0xFF43)

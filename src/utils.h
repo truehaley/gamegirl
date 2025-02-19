@@ -14,6 +14,7 @@ extern "C" {
 #define MSB(val16)  ((uint8_t)(((val16) & 0xFF00) >> 8))
 #define LSB(val16)  ((uint8_t)(((val16) & 0x00FF)))
 
+#define BIT(val, bit)   ( ((val)&(1<<(bit)))>>(bit) )
 
 #ifdef __cplusplus
 }

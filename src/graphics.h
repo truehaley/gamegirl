@@ -18,6 +18,7 @@ uint8_t getGfxReg8(uint16_t addr);
 void ppuCycles(int dots);
 
 void graphicsInit(void);
+void guiDrawGraphics(void);
 
 
 #ifdef __cplusplus

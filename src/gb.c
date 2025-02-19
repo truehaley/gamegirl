@@ -7,8 +7,8 @@ unsigned int mainClock = 0;
 RomImage bootrom;
 bool bootRomActive = true;
 
+extern RamImage vram;
 RamImage wram;
-RamImage vram;
 RamImage hram;
 
 
@@ -31,16 +31,15 @@ void gbInit(const char * const cartFilename)
         exit(0);
     }
 
-    allocateRam(&vram, 8192);
-    addRamView(&vram, "VRAM", 0x8000);
+    resetCpu();
+    timerInit();
+    graphicsInit();
+
+
     allocateRam(&wram, 8192);
     addRamView(&wram, "WRAM", 0xC000);
     allocateRam(&hram, 0x80);
     addRamView(&hram, "HRAM", 0xFF80);
-
-    resetCpu();
-    timerInit();
-    graphicsInit();
 }
 
 void gbDeinit(void)
@@ -141,19 +140,7 @@ IoRegDispatchFuncs ioRegDispatch[0x78] = {
     { NULL, NULL }, // FF3E
     { NULL, NULL }, // FF3F
 
-    #define REG_LCDL_ADDR   (0xFF40)
-    #define REG_STAT_ADDR   (0xFF41)
-    #define REG_SCY_ADDR    (0xFF42)
-    #define REG_SCX_ADDR    (0xFF43)
-    #define REG_LY_ADDR     (0xFF44)
-    #define REG_LYC_ADDR    (0xFF45)
-    #define REG_BGP_ADDR    (0xFF47)
-    #define REG_OBP0_ADDR   (0xFF48)
-    #define REG_OBP1_ADDR   (0xFF49)
-    #define REG_WY_ADDR     (0xFF4A)
-    #define REG_WX_ADDR     (0xFF4B)
-
-    { getGfxReg8, setGfxReg8 }, // FF40 Gfx LCDL
+    { getGfxReg8, setGfxReg8 }, // FF40 Gfx LCDC
     { getGfxReg8, setGfxReg8 }, // FF41 Gfx STAT
     { getGfxReg8, setGfxReg8 }, // FF42 Gfx SCY
     { getGfxReg8, setGfxReg8 }, // FF43 Gfx SCX
@@ -268,7 +255,7 @@ uint8_t getMem8(uint16_t addr)
             if( NULL != ioRegDispatch[addr & 0x00FF].getIo8 ) {
                 return ioRegDispatch[addr & 0x00FF].getIo8(addr);
             } else {
-                return 0xFF;
+                return 0x00;
             }
         } else {
             return 0xFF; // TODO what do unmapped regs return?

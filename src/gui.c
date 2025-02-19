@@ -94,7 +94,7 @@ void gui(void)
         int activeView=0;
         bool showContentArea = true;
 
-    int instructionsPerTab = 2000;
+    int instructionsPerTab = 10000;
     bool running=false;
 
     // game loop
@@ -141,11 +141,12 @@ void gui(void)
         BeginDrawing();
             ClearBackground(RAYWHITE);
 
-            //DrawText(TextFormat("[%f, %f]", panelScroll.x, panelScroll.y), 4, 4, 20, RED);
+            DrawText(TextFormat("[%d]", instructionsPerTab), 4, 4, 20, RED);
 
             guiDrawCpuState();
             guiDrawMemView();
-            DrawText(TextFormat("[%d]", instructionsPerTab), 4, 4, 20, RED);
+            guiDrawGraphics();
+
 
             /*
             GuiScrollPanel(panelRec, NULL, panelContentRec, &panelScroll, &panelView);

@@ -1,5 +1,20 @@
 #include "cpu.h"
 #include "gb.h"
+#include "gui.h"
+#include "raygui.h"
+#include "raylib.h"
+
+typedef struct {
+    union {
+        uint8_t val;
+        struct {
+            uint8_t palCol0:2;
+            uint8_t palCol1:2;
+            uint8_t palCol2:2;
+            uint8_t palCol3:2;
+        };
+    };
+} PaletteReg;
 
 struct {
     struct {
@@ -10,41 +25,9 @@ struct {
         uint8_t val;
     } WY;   // FF4A
 
-    struct {
-        union {
-            uint8_t val;
-            struct {
-                uint8_t transparent:2;
-                uint8_t palCol1:2;
-                uint8_t palCol2:2;
-                uint8_t palCol3:2;
-            };
-        };
-    } OBP1;  // FF49
-
-    struct {
-        union {
-            uint8_t val;
-            struct {
-                uint8_t transparent:2;
-                uint8_t palCol1:2;
-                uint8_t palCol2:2;
-                uint8_t palCol3:2;
-            };
-        };
-    } OBP0;  // FF48
-
-    struct {
-        union {
-            uint8_t val;
-            struct {
-                uint8_t palCol0:2;
-                uint8_t palCol1:2;
-                uint8_t palCol2:2;
-                uint8_t palCol3:2;
-            };
-        };
-    } BGP;  // FF47
+    PaletteReg OBP1;    // FF49
+    PaletteReg OBP0;    // FF48
+    PaletteReg BGP;     // FF47
 
     struct {
         uint8_t val;
@@ -81,7 +64,7 @@ struct {
         union {
             uint8_t val;
             struct {
-                uint8_t bgWindowEnable:1;   // 0 = Off; 1 = On
+                uint8_t bgWinEnable:1;      // 0 = Off; 1 = On
                 uint8_t objEnable:1;        // 0 = Off; 1 = On
                 uint8_t objSize:1;          // 0 = 8×8; 1 = 8×16
                 uint8_t bgTileMap:1;        // 0 = 9800–9BFF; 1 = 9C00–9FFF
@@ -91,7 +74,7 @@ struct {
                 uint8_t graphicsEnable:1;   // 0 = Off; 1 = On
             };
         };
-    } LCDL;  // FF40
+    } LCDC;  // FF40
 } regs;
 
 #define INT_STAT_HBLANK (0x08)
@@ -141,9 +124,9 @@ void checkLYC(void)
 void setGfxReg8(uint16_t addr, uint8_t val8)
 {
     switch( addr ) {
-        case REG_LCDL_ADDR:
-            regs.LCDL.val = val8;
-            if(0 == regs.LCDL.graphicsEnable) {
+        case REG_LCDC_ADDR:
+            regs.LCDC.val = val8;
+            if(0 == regs.LCDC.graphicsEnable) {
                 // reset the PPU state?
             }
             return;
@@ -190,8 +173,8 @@ void setGfxReg8(uint16_t addr, uint8_t val8)
 uint8_t getGfxReg8(uint16_t addr)
 {
     switch( addr ) {
-        case REG_LCDL_ADDR:
-            return regs.LCDL.val;
+        case REG_LCDC_ADDR:
+            return regs.LCDC.val;
         case REG_STAT_ADDR:
             return regs.STAT.val;
         case REG_SCY_ADDR:
@@ -249,7 +232,7 @@ static int scanlineCounter = 0;
 void ppuCycles(int cycles)
 {
     while(cycles--) {
-        if(1 == regs.LCDL.graphicsEnable) {
+        if(1 == regs.LCDC.graphicsEnable) {
             frameCounter++;
             scanlineCounter++;
 
@@ -282,6 +265,7 @@ void ppuCycles(int cycles)
                         if( LCD_DISPLAY_LINES < regs.LY.val ) {
                             regs.STAT.ppuMode = MODE_VBLANK;
                             maybeTriggerStatInterrupt(INT_STAT_VBLANK);
+                            setIntFlag(INT_VBLANK);  // always triggered
                         } else {
                             regs.STAT.ppuMode = MODE_OAM;
                             maybeTriggerStatInterrupt(INT_STAT_OAM);
@@ -313,6 +297,7 @@ void ppuCycles(int cycles)
     }
 }
 
+RamImage vram;
 
 void graphicsInit(void)
 {
@@ -320,4 +305,187 @@ void graphicsInit(void)
     frameCounter = 0;
     scanlineCounter = 0;
     activeStatFlags = 0;
+    allocateRam(&vram, 8192);
+    addRamView(&vram, "VRAM", 0x8000);
+}
+
+static const Color paletteColor[4] = {
+    WHITE,
+    LIGHTGRAY,
+    DARKGRAY,
+    BLACK
+};
+
+typedef struct {
+    struct {
+        uint8_t lBits;
+        uint8_t hBits;
+    } line[8];
+} Tile;
+
+static void guiDrawTile(Vector2 anchor, Tile *tile, PaletteReg pal, float pixelSize, float pixelPad)
+{
+    Rectangle pixelRect = { anchor.x, anchor.y, pixelSize, pixelSize };
+    for( int y = 0; y < 8; y++ ) {
+        pixelRect.x = anchor.x;
+        for( int x = 0; x < 8; x++ ) {
+            int pixelPalIdx = (BIT(tile->line[y].hBits, 7-x) << 1) | BIT(tile->line[y].lBits, 7-x);
+            int palColor = (pal.val & (3<<(pixelPalIdx*2))) >> (pixelPalIdx*2);
+            DrawRectangleRec(pixelRect, paletteColor[palColor]);
+            pixelRect.x += pixelSize+pixelPad;
+        }
+        pixelRect.y += pixelSize+pixelPad;
+    }
+}
+
+static void guiDrawMapFrame(Vector2 anchor, uint16_t x, uint16_t y, Color color)
+{
+    float left, right, top, bottom;
+    //bottom := (SCY + 143) % 256 and right := (SCX + 159) % 256
+    left = anchor.x + x;
+    right = anchor.x + ((x + 159) % 256);
+    top = anchor.y + y;
+    bottom = ((y + 143) % 256) + anchor.y;
+    if(left < right) {
+        // normal top & bottom lines
+        DrawLine(left, top, right, top, color);
+        DrawLine(left, bottom, right, bottom, color);
+        // extra thickk
+        DrawLine(left, top+0.5, right, top+0.5, color);
+        DrawLine(left, bottom-0.5, right, bottom-0.5, color);
+    } else {
+        // split top & bottom lines
+        DrawLine(anchor.x, top, right, top, color);
+        DrawLine(left, top, anchor.x+8*32, top, color);
+
+        DrawLine(anchor.x, bottom, right, bottom, color);
+        DrawLine(left, bottom, anchor.x+8*32, bottom, color);
+        // extra thickk
+        DrawLine(anchor.x, top+0.5, right, top+0.5, color);
+        DrawLine(left, top+0.5, anchor.x+8*32, top+0.5, color);
+
+        DrawLine(anchor.x, bottom-0.5, right, bottom-0.5, color);
+        DrawLine(left, bottom-0.5, anchor.x+8*32, bottom-0.5, color);
+    }
+    if(top < bottom) {
+        // normal left & right lines
+        DrawLine(left, top, left, bottom, color);
+        DrawLine(right, top, right, bottom, color);
+        // extra thickk
+        DrawLine(left+0.5, top, left+0.5, bottom, color);
+        DrawLine(right-0.5, top, right-0.5, bottom, color);
+    } else {
+        // split left & right lines
+        DrawLine(left, anchor.y, left, bottom, color);
+        DrawLine(left, top, left, anchor.y+8*32, color);
+
+        DrawLine(right, anchor.y, right, bottom, color);
+        DrawLine(right, top, right, anchor.y+8*32, color);
+        // extra thickk
+        DrawLine(left+0.5, anchor.y, left+0.5, bottom, color);
+        DrawLine(left+0.5, top, left+0.5, anchor.y+8*32, color);
+
+        DrawLine(right-0.5, anchor.y, right-0.5, bottom, color);
+        DrawLine(right-0.5, top, right-0.5, anchor.y+8*32, color);
+    }
+}
+
+static void guiDrawTileMap(Vector2 anchor, const uint8_t map)
+{
+    // Width x Height = 256 x 256 or 288 x 288
+    Vector2 tileAnchor = anchor;
+    uint8_t tileIndex;
+    Tile *tile;
+    uint16_t offset = 0x1800 + 0x400 * map;
+
+    for( int y = 0; y < 32; y++ ) {
+        tileAnchor.x = anchor.x;
+        for( int x = 0; x < 32; x++ ) {
+            tileIndex = vram.contents[offset++];
+            if( 1 == regs.LCDC.bgWinTileData ) {
+                tile = (Tile *)&vram.contents[tileIndex*16];
+            } else {
+                tile = (Tile *)&vram.contents[ (256+((int8_t)tileIndex))*16 ];
+            }
+            guiDrawTile(tileAnchor, tile, regs.BGP, 1, 0);
+            tileAnchor.x += 8;
+        }
+        tileAnchor.y += 8;
+    }
+
+    if( 1 == regs.LCDC.bgWinEnable ) {
+        if( map == regs.LCDC.bgTileMap ) {
+            // draw background frame
+            guiDrawMapFrame(anchor, regs.SCX.val, regs.SCY.val, PURPLE);
+        }
+        if( (1 == regs.LCDC.windowEnable)
+         && (map == regs.LCDC.windowTileMap) ) {
+             // draw window frame
+             guiDrawMapFrame(anchor, 166-regs.WX.val, 143-regs.WY.val, BLUE);
+        }
+    }
+}
+
+static void guiDrawTileData(Vector2 anchor)
+{
+    // Width x Height = 18*17 x 25*17 = 306 x 425
+
+    uint16_t offset = 0;
+    Vector2 tileAnchor = anchor;
+
+    const Color lineColor = GetColor(GuiGetStyle(DEFAULT,LINE_COLOR));
+
+    tileAnchor.x += 4 + FONTWIDTH*2;
+    for( int x = 0; x < 16; x++ ) {
+        DrawTextEx(firaFont, TextFormat("%X",x), tileAnchor, FONTSIZE, 0, lineColor);
+        tileAnchor.x += 2*8+1;
+    }
+    tileAnchor = (Vector2){ anchor.x, anchor.y + FONTSIZE };
+    for( int y = 0; y < 24; y++ ) {
+        tileAnchor.x = anchor.x;
+
+        // Draw indexes for selected BG/Win tile data
+        if( y < 8 ) {
+            if (1 == regs.LCDC.bgWinTileData) {
+                DrawTextEx(firaFont, TextFormat("%X0",y), tileAnchor, FONTSIZE, 0, lineColor);
+            }
+        } else if( y < 16 ) {
+            DrawTextEx(firaFont, TextFormat("%X0",y), tileAnchor, FONTSIZE, 0, lineColor);
+        } else if( 0 == regs.LCDC.bgWinTileData ) {
+            DrawTextEx(firaFont, TextFormat("%X0",y-16), tileAnchor, FONTSIZE, 0, lineColor);
+        }
+        tileAnchor.x += FONTWIDTH*2;
+
+        for( int x = 0; x < 16; x++ ) {
+            guiDrawTile(tileAnchor, (Tile *)&vram.contents[offset], regs.BGP, 2, 0);
+            offset += sizeof(Tile);
+            tileAnchor.x += 2*8+1;
+        }
+
+        // Draw indexes for Obj tiles
+        if( y < 16 ) {
+            DrawTextEx(firaFont, TextFormat("%X0",y), tileAnchor, FONTSIZE, 0, lineColor);
+        }
+        tileAnchor.y += 2*8+1;
+    }
+}
+/*
+static void guiDrawCpuReg8(Vector2 anchor, uint8_t val8, const char * const name)
+{
+    // header
+    GuiGroupBox((Rectangle){anchor.x, anchor.y, FONTWIDTH*4, FONTSIZE*1.5}, name);
+    //DrawTextEx(firaFont, name, anchor, FONTSIZE, 0, BLACK);
+    anchor.x += FONTWIDTH;
+    anchor.y += FONTSIZE/3;
+    DrawTextEx(firaFont, TextFormat("%02X", val8),  anchor, FONTSIZE, 0, BLACK);
+}
+*/
+
+void guiDrawGraphics(void)
+{
+    // Top left corner of the memory viewer
+    Vector2 viewAnchor = { 510, 100 };
+    guiDrawTileMap((Vector2){550, 50}, 0);
+    guiDrawTileMap((Vector2){550, 350}, 1);
+    guiDrawTileData((Vector2){850, 50});
 }
