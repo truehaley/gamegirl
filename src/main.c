@@ -1,5 +1,6 @@
 #include "gb.h"
 #include "gui.h"
+#include "raylib.h"
 #include <argp.h>
 
 const char *argp_program_version = "gamegirl 0.0.1";
@@ -16,6 +17,7 @@ static struct argp_option argp_options[] = {
   {"break",     'b', "ADDR", 0,  "Set Breakpoint at address [ADDR]"},
   {"exitbreak", 'e', 0,      0,  "Exit when breakpoint or hung"},
   {"debugLog",  'd', "FILE", 0,  "Output Gameboy-Doctor compatible log to [FILE]" },
+  {"verbose",   'v', 0,      0,  "Enable verbose logging"},
   { 0 }
 };
 
@@ -35,6 +37,7 @@ struct ArgResult
   bool exitOnBreak;
   bool autoRun;
   char *debugLog;
+  bool verbose;
 };
 
 // argp callback to process a single option
@@ -61,6 +64,9 @@ static error_t argpParser(int key, char *arg, struct argp_state *state)
       break;
     case 'd':
       args->debugLog = arg;
+      break;
+    case 'v':
+      args->verbose = true;
       break;
     case ARGP_KEY_ARG:
       args->romFilename = arg;
@@ -112,7 +118,16 @@ int main(int argc, char **argv)
         exitOnBreak = true;
     }
 
+    if(true == args.verbose ) {
+        printf("Enabling verbose console logs\n");
+        SetTraceLogLevel(LOG_INFO);
+    } else {
+        SetTraceLogLevel(LOG_WARNING);
+    }
+
     systemBreakpoint = (args.breakpointSet)? args.breakpoint : 0xFFFF;
+
+    guiInit();
 
     gbInit(args.romFilename);
 

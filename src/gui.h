@@ -16,6 +16,7 @@ extern "C" {
 extern Font firaFont;
 extern uint16_t systemBreakpoint;
 
+void guiInit(void);
 void gui(void);
 
 

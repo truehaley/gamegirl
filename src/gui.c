@@ -1,5 +1,6 @@
 #include "gb.h"
 #include "graphics.h"
+#include "raylib.h"
 #include "gui.h"
 
 Font firaFont;
@@ -55,21 +56,26 @@ void guiDrawEmulatorControls(void)
     }
     anchor.x += 55;
 
-    DrawFPS(1100-80, 0);
+    DrawFPS(1000, 0);
 }
 
-void gui(void)
+void guiInit(void)
 {
     // Tell the window to use vsync and work on high DPI displays
-    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE);
 
     // Create the window and OpenGL context
-    InitWindow(1100, 900, "GameGirl");
+    InitWindow(1080, 900, "GameGirl");
+    SetWindowMinSize(1080, 900);
     SetTargetFPS(60);
 
     // Load a texture from the resources directory
     //Texture wabbit = LoadTexture("Resources/wabbit_alpha.png");
     firaFont = LoadFontEx("resources/Fonts/FiraMono/FiraMonoNerdFont-Regular.otf", FONTSIZE, 0, 250);
+}
+
+void gui(void)
+{
 
     int instructionsPerTab = 10000;
     bool keepRunning = true;
@@ -117,7 +123,7 @@ void gui(void)
             takeBigStep = false;
         } else if ( running ) {
             int maxInstructionsPerFrame = 20000;  // Theoretical max should be ~17500
-            while( !guiUpdateScreen && (0 < maxInstructionsPerFrame--) ) {
+            while( !guiUpdateScreen ) { //&& (0 < maxInstructionsPerFrame--) ) {
                 if( executeInstruction(systemBreakpoint) ) {
                     running = false;
                     if( exitOnBreak ) {
