@@ -124,7 +124,7 @@ workspace (workspaceName)
     configurations { "Debug", "Release", "Debug_RGFW", "Release_RGFW"}
     platforms { "x64", "x86", "ARM64"}
 
-    defaultplatform ("x64")
+    defaultplatform ("ARM64")
 
     filter "configurations:Debug or Debug_RGFW"
         defines { "DEBUG" }
