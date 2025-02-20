@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "gb.h"
 #include "gui.h"
+#include "raylib.h"
 #include <string.h>
 
 static struct __attribute__((packed)) {
@@ -66,11 +67,22 @@ bool interruptsEnabled = false;
 bool interruptsPendingEnable = false;
 bool cpuHalted = false;
 
+typedef struct {
+    uint16_t addr;
+    uint8_t code[3];
+} InstructionDetail;
+InstructionDetail instructionHistory[8];
+int historyHead = 0;
+
+
 static uint8_t nextInstruction = 0; // start with NOP at boot
+
+
 
 void resetCpu(void)
 {
     memset(&regs, 0, sizeof(regs));
+    memset(instructionHistory, 0, sizeof(instructionHistory));
     ieReg.val = 0;
     ifReg.val = 0;
     interruptsEnabled = false;
@@ -132,6 +144,25 @@ static void guiDrawCpuReg16(Vector2 anchor, uint16_t val16, const char * const n
 
 extern RomImage bootrom; // TODO get rid of this
 
+int guiDisassembleDetail(char * const buffer, InstructionDetail *id)
+{
+    char * buff = buffer;
+
+    buff = buff + sprintf(buff, "%04X | ", id->addr);
+    int bytesPerInst = instructionSize(id->code[0]);
+    for(int index = 0; index < 3; index++) {
+        if (index < bytesPerInst) {
+            buff = buff + sprintf(buff, "%02X ", id->code[index]);
+        } else {
+            buff = buff + sprintf(buff,"   ");
+        }
+    }
+    buff = buff + sprintf(buff, "|  ");
+    buff = buff + disassemble2(buff, id->code, id->addr);
+    buff = buff + sprintf(buff, "\n");
+    return buff - buffer;
+}
+
 void guiDrawCpuState(void)
 {
     // w x h = ?? x
@@ -164,33 +195,27 @@ void guiDrawCpuState(void)
     regAnchor1.y += FONTSIZE*2;
 
     static char buffer[2048];
-    char *buff;
-    int offset = regs.PC-1;
-    int jumpDest, bytesPerInst, lines=0;
-    uint8_t code[3];
+    char *buff = buffer;
+    int nextPC = regs.PC-1;
+    int lines=0;
 
-    buff = buffer;
-
+    int historyOffset = (historyHead + 8 - 7) & 0x7;
     do {
-        code[0] = getMem8(offset);
-        code[1] = getMem8(offset+1);
-        code[2] = getMem8(offset+2);
-
-        buff = buff + sprintf(buff, "%04X | ", offset);
-        bytesPerInst = instructionSize(code[0]);
-        for(int index = 0; index < 3; index++) {
-            if (index < bytesPerInst) {
-                buff = buff + sprintf(buff, "%02X ", getMem8(offset+index));
-            } else {
-                buff = buff + sprintf(buff,"   ");
-            }
-        }
-        buff = buff + sprintf(buff, "|  ");
-        buff = buff + disassemble2(buff, code, offset);
-        buff = buff + sprintf(buff, "\n");
-        offset += bytesPerInst;
+        buff = buff + guiDisassembleDetail(buff, &instructionHistory[historyOffset]);
+        historyOffset = (historyOffset + 1) & 0x7;
+    } while( ++lines < 7 );
+    buff = buff + sprintf(buff, "\n");
+    do {
+        InstructionDetail id;
+        id.addr = nextPC;
+        id.code[0] = getMem8(nextPC);
+        id.code[1] = getMem8(nextPC+1);
+        id.code[2] = getMem8(nextPC+2);
+        buff = buff + guiDisassembleDetail(buff, &id);
+        nextPC += instructionSize(id.code[0]);
     } while( ++lines < 11 );
-    DrawTextEx(firaFont, buffer, (Vector2){viewAnchor1.x + 95, viewAnchor1.y+10}, FONTSIZE, 0, BLACK);
+    DrawRectangle(viewAnchor1.x+90, viewAnchor1.y+FONTSIZE*9, 350, FONTSIZE, ColorAlpha(GOLD, 0.3));
+    DrawTextEx(firaFont, buffer, (Vector2){viewAnchor1.x + 95, viewAnchor1.y}, FONTSIZE, 0, BLACK);
 }
 
 
@@ -1179,6 +1204,13 @@ bool executeInstruction(const uint16_t breakpoint)
         // latch any pending re-enable
         interruptsEnabled = interruptsPendingEnable;
     }
+
+    // keep a record of the executed instructions for the disassembly view
+    instructionHistory[historyHead].addr = regs.PC-1;
+    instructionHistory[historyHead].code[0] = getMem8(regs.PC-1);
+    instructionHistory[historyHead].code[1] = getMem8(regs.PC);
+    instructionHistory[historyHead].code[2] = getMem8(regs.PC+1);
+    historyHead = (historyHead+1) & 0x7;
 
     const uint8_t block = INST_BLOCK_EXTRACT(instruction);
     bool hung;
