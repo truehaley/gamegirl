@@ -15,6 +15,7 @@
 #include "serial.h"
 #include "timer.h"
 #include "graphics.h"
+#include "controls.h"
 
 
 #ifdef __cplusplus

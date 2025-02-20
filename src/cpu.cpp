@@ -134,8 +134,9 @@ extern RomImage bootrom; // TODO get rid of this
 
 void guiDrawCpuState(void)
 {
-    // Top left corner of the memory viewer
-    Vector2 viewAnchor1 = { 20, 100 };
+    // w x h = ?? x
+    // Top left corner of the cpu display
+    Vector2 viewAnchor1 = { 10, 610 };
 
     Vector2 regAnchor1 = { viewAnchor1.x, viewAnchor1.y };
     Vector2 regAnchor2 = { regAnchor1.x + FONTWIDTH*4, regAnchor1.y };
@@ -162,7 +163,7 @@ void guiDrawCpuState(void)
     guiDrawCpuReg16(regAnchor1, flags, "Z N H C");
     regAnchor1.y += FONTSIZE*2;
 
-    char buffer[1024];
+    static char buffer[2048];
     char *buff;
     int offset = regs.PC-1;
     int jumpDest, bytesPerInst, lines=0;
@@ -188,23 +189,8 @@ void guiDrawCpuState(void)
         buff = buff + disassemble2(buff, code, offset);
         buff = buff + sprintf(buff, "\n");
         offset += bytesPerInst;
-    } while( ++lines < 4 );
-    DrawTextEx(firaFont, buffer, regAnchor1, FONTSIZE, 0, BLACK);
-
-    /*
-    DrawTextEx(firaFont, TextFormat("%04X |", regs.PC-1),regAnchor1, FONTSIZE, 0, BLACK);
-    regAnchor1.x += FONTWIDTH*7;
-    int bytesPerInst = disassembleInstruction(&bootrom, regs.PC-1, buffer, &jumpDest);
-    for(int index = 0; index < 3; index++) {
-        if (index < bytesPerInst) {
-            DrawTextEx(firaFont, TextFormat("%02X", bootrom.contents[regs.PC-1+index]), regAnchor1, FONTSIZE, 0, BLACK);
-        }
-        regAnchor1.x += FONTWIDTH*3;
-    }
-    DrawTextEx(firaFont, "|", regAnchor1, FONTSIZE, 0, BLACK);
-    regAnchor1.x += FONTWIDTH*2;
-    DrawTextEx(firaFont, buffer,  regAnchor1, FONTSIZE, 0, BLACK);
-    */
+    } while( ++lines < 11 );
+    DrawTextEx(firaFont, buffer, (Vector2){viewAnchor1.x + 95, viewAnchor1.y+10}, FONTSIZE, 0, BLACK);
 }
 
 
@@ -734,7 +720,7 @@ static bool ld_r8_r8(uint8_t instruction)
     const uint8_t r8_b  = INST_R8_B_EXTRACT(instruction);
     setReg8(r8_a,getReg8(r8_b));
     // no flags affected
-    return false;
+    return ((R8_B == r8_a) && (R8_B == r8_b));
 }
 
 static bool pop_r16(uint8_t instruction)

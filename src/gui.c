@@ -1,10 +1,62 @@
-#include "gui.h"
-#include "cpu.h"
 #include "gb.h"
-#include "raylib.h"
+#include "graphics.h"
+#include "gui.h"
 
 Font firaFont;
 uint16_t systemBreakpoint = 0xFFFF;
+
+bool takeStep = false;
+bool takeBigStep = false;
+int bigStepCount = 0;
+
+void guiDrawEmulatorControls(void)
+{
+    const Vector2 viewAnchor = {10, 845};  //570
+    Vector2 anchor = viewAnchor;
+
+    // Bounds
+    GuiPanel((Rectangle){viewAnchor.x, viewAnchor.y, 480, 32}, NULL);
+    anchor.x += 5;
+    anchor.y += 5;
+
+    // State
+    if( running ) {
+        DrawRectangleV(anchor, (Vector2){60, 22}, ColorAlpha(LIME, 0.5));
+        DrawText("RUNNING", anchor.x+8, anchor.y+6, 10, BLACK);
+    } else {
+        DrawRectangleV(anchor, (Vector2){60, 22}, ColorAlpha(RED, 0.5));
+        DrawText("STOPPED", anchor.x+6, anchor.y+6, 10, BLACK);
+    }
+    anchor.x += 65;
+
+    // Step
+    takeStep = GuiButton((Rectangle){anchor.x, anchor.y, 50, 22}, "STEP");
+    anchor.x += 55;
+
+    // Big Step
+    takeBigStep = GuiButton((Rectangle){anchor.x, anchor.y, 50, 22}, "BGSTP");
+    anchor.x += 55;
+
+    // Big Step size
+    static int bigStepSelected = 2;
+    GuiToggleGroup((Rectangle){anchor.x, anchor.y+2, 30, 18}, "10;100;1K;10K;100K", &bigStepSelected);
+    bigStepCount = pow(10,bigStepSelected+1);
+    anchor.x += 34*5;
+
+    // Run
+    if( true == GuiButton((Rectangle){anchor.x, anchor.y, 50, 22}, "RUN")) {
+        running = true;
+    }
+    anchor.x += 55;
+
+    // Stop
+    if( true == GuiButton((Rectangle){anchor.x, anchor.y, 50, 22}, "STOP")) {
+        running = false;
+    }
+    anchor.x += 55;
+
+    DrawFPS(1100-80, 0);
+}
 
 void gui(void)
 {
@@ -12,15 +64,11 @@ void gui(void)
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 
     // Create the window and OpenGL context
-    InitWindow(1280, 800, "GameGirl");
+    InitWindow(1100, 900, "GameGirl");
     SetTargetFPS(60);
 
-
-    Vector2 InterfaceAnchor = { 8, 8 };
-    int pressed;
-
     // Load a texture from the resources directory
-    Texture wabbit = LoadTexture("Resources/wabbit_alpha.png");
+    //Texture wabbit = LoadTexture("Resources/wabbit_alpha.png");
     firaFont = LoadFontEx("resources/Fonts/FiraMono/FiraMonoNerdFont-Regular.otf", FONTSIZE, 0, 250);
 
     int instructionsPerTab = 10000;
@@ -30,21 +78,12 @@ void gui(void)
     // run the loop untill the user presses ESCAPE or presses the Close button on the window
     while (!WindowShouldClose() && keepRunning)
     {
-        // Update
+        // Process keys
          if(IsKeyPressed(KEY_SPACE)) {
-            executeInstruction(systemBreakpoint);
-            running = false;
+            takeStep = true;
         }
-        if(IsKeyPressed(KEY_TAB) | running) {
-            for(int i=0; i<instructionsPerTab; i++) {
-                if( executeInstruction(systemBreakpoint) ) {
-                    running = false;
-                    if( exitOnBreak ) {
-                        keepRunning = false;
-                    }
-                    break;
-                }
-            }
+        if(IsKeyPressed(KEY_TAB)) {
+            takeBigStep = true;
         }
         if(IsKeyPressed(KEY_UP)) {
             instructionsPerTab+= (IsKeyDown(KEY_LEFT_SHIFT))?100:10;
@@ -66,28 +105,41 @@ void gui(void)
             }
         }
 
-        if( WindowShouldClose() ) {
-            break;
+        if( takeStep ) {
+            executeInstruction(systemBreakpoint);
+            running = false;
+            takeStep = false;
+        } else if( takeBigStep ) {
+            for( int i=0; i<bigStepCount; i++) {
+                executeInstruction(systemBreakpoint);
+            }
+            running = false;
+            takeBigStep = false;
+        } else if ( running ) {
+            int maxInstructionsPerFrame = 20000;  // Theoretical max should be ~17500
+            while( !guiUpdateScreen && (0 < maxInstructionsPerFrame--) ) {
+                if( executeInstruction(systemBreakpoint) ) {
+                    running = false;
+                    if( exitOnBreak ) {
+                        keepRunning = false;
+                    }
+                    break;
+                }
+            }
         }
+
+
+
 
         // drawing
         BeginDrawing();
             ClearBackground(RAYWHITE);
 
-            DrawText(TextFormat("[%d]", instructionsPerTab), 4, 4, 20, RED);
-
-            Vector2 runningAnchor = {4, 30};
-            if( running ) {
-                DrawRectangleV(runningAnchor, (Vector2){60, 16}, ColorAlpha(LIME, 0.5));
-                DrawText("RUNNING", runningAnchor.x+8, runningAnchor.y+3, 10, BLACK);
-            } else {
-                DrawRectangleV(runningAnchor, (Vector2){60, 16}, ColorAlpha(RED, 0.5));
-                DrawText("STOPPED", runningAnchor.x+6, runningAnchor.y+3, 10, BLACK);
-            }
-
+            guiDrawGraphics();
+            guiDrawControls();
             guiDrawCpuState();
             guiDrawMemView();
-            guiDrawGraphics();
+            guiDrawEmulatorControls();
 
         // end the frame and get ready for the next one  (display frame, poll input, etc...)
         EndDrawing();
@@ -95,7 +147,7 @@ void gui(void)
 
     // cleanup
     // unload our texture so it can be cleaned up
-    UnloadTexture(wabbit);
+    //UnloadTexture(wabbit);
 
     // destroy the window and cleanup the OpenGL context
     CloseWindow();

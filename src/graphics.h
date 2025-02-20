@@ -12,6 +12,8 @@ extern "C" {
 #define GBCOL_DARKGRAY  (2)
 #define GBCOL_BLACK     (3)
 
+extern bool guiUpdateScreen;
+
 void setGfxReg8(uint16_t addr, uint8_t val8);
 uint8_t getGfxReg8(uint16_t addr);
 

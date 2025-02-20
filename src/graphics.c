@@ -4,6 +4,9 @@
 #include "raygui.h"
 #include "raylib.h"
 
+// Set at the beginning of vblank so the gui will redraw the screen
+bool guiUpdateScreen = false;
+
 typedef struct {
     union {
         uint8_t val;
@@ -266,6 +269,7 @@ void ppuCycles(int cycles)
                             regs.STAT.ppuMode = MODE_VBLANK;
                             maybeTriggerStatInterrupt(INT_STAT_VBLANK);
                             setIntFlag(INT_VBLANK);  // always triggered
+                            guiUpdateScreen = true;
                         } else {
                             regs.STAT.ppuMode = MODE_OAM;
                             maybeTriggerStatInterrupt(INT_STAT_OAM);
@@ -307,6 +311,7 @@ void graphicsInit(void)
     activeStatFlags = 0;
     allocateRam(&vram, 8192);
     addRamView(&vram, "VRAM", 0x8000);
+    guiUpdateScreen = false;
 }
 
 static const Color paletteColor[4] = {
@@ -314,6 +319,13 @@ static const Color paletteColor[4] = {
     LIGHTGRAY,
     DARKGRAY,
     BLACK
+};
+
+static const Color screenPaletteColor[4] = {
+    (Color){ 175, 203, 70, 255 },
+    (Color){ 121, 170, 109, 255 },
+    (Color){ 34, 111, 95, 255 },
+    (Color){ 8, 41, 85, 255 }
 };
 
 typedef struct {
@@ -469,23 +481,28 @@ static void guiDrawTileData(Vector2 anchor)
         tileAnchor.y += 2*8+1;
     }
 }
-/*
-static void guiDrawCpuReg8(Vector2 anchor, uint8_t val8, const char * const name)
+
+void guiDrawScreen(Vector2 anchor)
 {
-    // header
-    GuiGroupBox((Rectangle){anchor.x, anchor.y, FONTWIDTH*4, FONTSIZE*1.5}, name);
-    //DrawTextEx(firaFont, name, anchor, FONTSIZE, 0, BLACK);
-    anchor.x += FONTWIDTH;
-    anchor.y += FONTSIZE/3;
-    DrawTextEx(firaFont, TextFormat("%02X", val8),  anchor, FONTSIZE, 0, BLACK);
+    DrawRectangleV(anchor, (Vector2){ 160*3, 144*3 }, screenPaletteColor[0]);
+    guiUpdateScreen = false;
 }
-*/
+
 
 void guiDrawGraphics(void)
 {
-    // Top left corner of the memory viewer
-    Vector2 viewAnchor = { 510, 100 };
-    guiDrawTileMap((Vector2){550, 50}, 0);
-    guiDrawTileMap((Vector2){550, 350}, 1);
-    guiDrawTileData((Vector2){850, 50});
+    // Top left corner of the graphics interface
+    Vector2 viewAnchor = { 10, 10 };
+    Vector2 anchor = viewAnchor;
+    // Main Display
+    guiDrawScreen(viewAnchor);
+    anchor.x += 160*3 + 10;
+    guiDrawTileData(anchor); // (Vector2){850, 50});
+    anchor.x += 306 + 10;
+    anchor.y += 16;
+    guiDrawTileMap(anchor, 0); // (Vector2){550, 50}, 0);
+    anchor.y += 256 + 10;
+    guiDrawTileMap(anchor, 1); // (Vector2){550, 350}, 1);
+    anchor.x -= 16;
+    anchor.y += 256 + 10;
 }

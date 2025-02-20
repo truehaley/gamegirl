@@ -212,7 +212,7 @@ void addRamView(RamImage *ram, const char * const name, uint16_t addrOffset)
 void guiDrawMemView(void)
 {
     // Top left corner of the memory viewer
-    const Vector2 viewAnchor = { 20, 400 };
+    const Vector2 viewAnchor = { 550 /* 510 */, 560 };
 
     static int selectedView = 0;
 
