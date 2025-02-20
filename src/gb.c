@@ -278,7 +278,7 @@ void setMem8(uint16_t addr, uint8_t val8)
         setCartRom8(addr & 0x7FFF, val8);
     } else if( addr >= 0x8000 && addr <= 0x9FFF) {
         // VRAM
-        vram.contents[addr&0x1FFF] = val8;
+        setVram8(addr&0x1FFF, val8);
 
     } else if( addr >= 0xA000 && addr <= 0xBFFF) {
         // CARTRIDGE RAM

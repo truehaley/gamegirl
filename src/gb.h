@@ -26,7 +26,7 @@ extern FILE *doctorLogFile;
 extern bool serialConsole;
 extern bool exitOnBreak;
 extern bool running;
-
+extern bool bootRomActive;
 
 #define MAIN_CLOCK_HZ (4194304)
 #define MAIN_CLOCKS_PER_CPU_CYCLE   (4)

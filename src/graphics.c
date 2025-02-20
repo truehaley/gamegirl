@@ -229,8 +229,7 @@ uint8_t getGfxReg8(uint16_t addr)
 
 static int frameCounter = 0;
 static int scanlineCounter = 0;
-
-
+static int totalFrames = 0;
 
 void ppuCycles(int cycles)
 {
@@ -269,7 +268,13 @@ void ppuCycles(int cycles)
                             regs.STAT.ppuMode = MODE_VBLANK;
                             maybeTriggerStatInterrupt(INT_STAT_VBLANK);
                             setIntFlag(INT_VBLANK);  // always triggered
-                            guiUpdateScreen = true;
+                            if(true == bootRomActive) {
+                                // refresh the screen 10 times less often while the bootrom is running
+                                //  letting us speed throught the boot screen!
+                                guiUpdateScreen = ((totalFrames % 10) == 0);
+                            } else {
+                                guiUpdateScreen = true;
+                            }
                         } else {
                             regs.STAT.ppuMode = MODE_OAM;
                             maybeTriggerStatInterrupt(INT_STAT_OAM);
@@ -281,6 +286,7 @@ void ppuCycles(int cycles)
                 case MODE_VBLANK:
 
                     if( (SCANLINE_CYCLES) <= scanlineCounter ) {
+                        totalFrames++;
                         scanlineCounter = 0;
                         regs.LY.val++;
                         if( LCD_TOTAL_LINES <= regs.LY.val ) {
@@ -303,17 +309,6 @@ void ppuCycles(int cycles)
 
 RamImage vram;
 
-void graphicsInit(void)
-{
-    memset(&regs, 0, sizeof(regs));
-    frameCounter = 0;
-    scanlineCounter = 0;
-    activeStatFlags = 0;
-    allocateRam(&vram, 8192);
-    addRamView(&vram, "VRAM", 0x8000);
-    guiUpdateScreen = false;
-}
-
 static const Color paletteColor[4] = {
     WHITE,
     LIGHTGRAY,
@@ -335,8 +330,73 @@ typedef struct {
     } line[8];
 } Tile;
 
-static void guiDrawTile(Vector2 anchor, Tile *tile, PaletteReg pal, float pixelSize, float pixelPad)
+typedef struct {
+    Image image;
+    Texture2D tex;
+    bool dirty;
+} TileTex;
+
+TileTex tileTextures[384];
+
+void graphicsInit(void)
 {
+    memset(&regs, 0, sizeof(regs));
+    frameCounter = 0;
+    scanlineCounter = 0;
+    totalFrames = 0;
+    activeStatFlags = 0;
+    allocateRam(&vram, 8192);
+    addRamView(&vram, "VRAM", 0x8000);
+    guiUpdateScreen = false;
+    memset(&tileTextures, 0, sizeof(tileTextures));
+    // setup initial blank tile textures
+    for(int i=0; i<384; i++) {
+        tileTextures[i].image = GenImageColor(8, 8, paletteColor[0]);
+        tileTextures[i].tex = LoadTextureFromImage(tileTextures[i].image);
+    }
+}
+
+void setVram8(uint16_t addr, uint8_t val8)
+{
+    vram.contents[addr&0x1FFF] = val8;
+    if( (384*sizeof(Tile)) > addr ) {
+        tileTextures[addr/sizeof(Tile)].dirty = true;
+    }
+}
+
+static void guiRegenTileTex(int index, Tile *tile, PaletteReg pal)
+{
+    ImageClearBackground(&tileTextures[index].image, paletteColor[0]);
+    for( int y = 0; y < 8; y++ ) {
+        for( int x = 0; x < 8; x++ ) {
+            int pixelPalIdx = (BIT(tile->line[y].hBits, 7-x) << 1) | BIT(tile->line[y].lBits, 7-x);
+            int palColor = (pal.val & (3<<(pixelPalIdx*2))) >> (pixelPalIdx*2);
+            if( 0 != palColor ) {
+                ImageDrawPixel(&tileTextures[index].image, x, y, paletteColor[palColor]);
+            }
+        }
+    }
+    UnloadTexture(tileTextures[index].tex);
+    tileTextures[index].tex = LoadTextureFromImage(tileTextures[index].image);
+
+}
+
+static void guiRegenDirtyTiles(void)
+{
+    uint16_t offset = 0;
+    for(int i=0; i<384; i++) {
+        if(true == tileTextures[i].dirty) {
+            guiRegenTileTex(i, (Tile *)&vram.contents[offset], regs.BGP);
+            tileTextures[i].dirty = false;
+        }
+        offset += sizeof(Tile);
+    }
+}
+
+static void guiDrawTile(Vector2 anchor, int index, Tile *tile, PaletteReg pal, float pixelSize, float pixelPad)
+{
+    DrawTextureEx(tileTextures[index].tex, anchor, 0, pixelSize, WHITE);
+    /*
     Rectangle pixelRect = { anchor.x, anchor.y, pixelSize, pixelSize };
     for( int y = 0; y < 8; y++ ) {
         pixelRect.x = anchor.x;
@@ -348,6 +408,8 @@ static void guiDrawTile(Vector2 anchor, Tile *tile, PaletteReg pal, float pixelS
         }
         pixelRect.y += pixelSize+pixelPad;
     }
+    */
+
 }
 
 static void guiDrawMapFrame(Vector2 anchor, uint16_t x, uint16_t y, Color color)
@@ -416,10 +478,12 @@ static void guiDrawTileMap(Vector2 anchor, const uint8_t map)
             tileIndex = vram.contents[offset++];
             if( 1 == regs.LCDC.bgWinTileData ) {
                 tile = (Tile *)&vram.contents[tileIndex*16];
+                guiDrawTile(tileAnchor, tileIndex, tile, regs.BGP, 1, 0);
             } else {
                 tile = (Tile *)&vram.contents[ (256+((int8_t)tileIndex))*16 ];
+                guiDrawTile(tileAnchor, (256+(int8_t)tileIndex), tile, regs.BGP, 1, 0);
             }
-            guiDrawTile(tileAnchor, tile, regs.BGP, 1, 0);
+            //guiDrawTile(tileAnchor, tile, regs.BGP, 1, 0);
             tileAnchor.x += 8;
         }
         tileAnchor.y += 8;
@@ -469,7 +533,7 @@ static void guiDrawTileData(Vector2 anchor)
         tileAnchor.x += FONTWIDTH*2;
 
         for( int x = 0; x < 16; x++ ) {
-            guiDrawTile(tileAnchor, (Tile *)&vram.contents[offset], regs.BGP, 2, 0);
+            guiDrawTile(tileAnchor, offset/16, (Tile *)&vram.contents[offset], regs.BGP, 2, 0);
             offset += sizeof(Tile);
             tileAnchor.x += 2*8+1;
         }
@@ -497,6 +561,8 @@ void guiDrawGraphics(void)
     // Main Display
     guiDrawScreen(viewAnchor);
     anchor.x += 160*3 + 10;
+
+    guiRegenDirtyTiles();
     guiDrawTileData(anchor); // (Vector2){850, 50});
     anchor.x += 306 + 10;
     anchor.y += 16;

@@ -19,6 +19,8 @@ uint8_t getGfxReg8(uint16_t addr);
 
 void ppuCycles(int dots);
 
+void setVram8(uint16_t addr, uint8_t val8);
+
 void graphicsInit(void);
 void guiDrawGraphics(void);
 
