@@ -9,6 +9,7 @@ extern "C" {
 
 uint8_t getSerialReg8(uint16_t addr);
 void setSerialReg8(uint16_t addr, uint8_t val8);
+void serialInit(void);
 
 #ifdef __cplusplus
 }

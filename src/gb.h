@@ -32,6 +32,8 @@ extern bool bootRomActive;
 #define MAIN_CLOCKS_PER_CPU_CYCLE   (4)
 #define CPU_CYCLE_HZ  (MAIN_CLOCK_HZ/MAIN_CLOCKS_PER_CPU_CYCLE)
 
+// Joypad Regs
+#define REG_JOYP_ADDR   (0xFF00)
 // Serial Regs
 #define REG_SB_ADDR     (0xFF01)
 #define REG_SC_ADDR     (0xFF02)

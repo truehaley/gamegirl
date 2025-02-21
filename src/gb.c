@@ -33,9 +33,10 @@ void gbInit(const char * const cartFilename)
     }
 
     resetCpu();
+    controlsInit();
+    serialInit();
     timerInit();
     graphicsInit();
-
 
     allocateRam(&wram, 8192);
     addRamView(&wram, "WRAM", 0xC000);
@@ -73,7 +74,7 @@ typedef struct {
 } IoRegDispatchFuncs;
 
 IoRegDispatchFuncs ioRegDispatch[0x78] = {
-    { NULL, NULL }, // FF00
+    { getControlsReg8, setControlsReg8 }, // FF00
     { getSerialReg8, setSerialReg8 }, // FF01 SB
     { getSerialReg8, setSerialReg8 }, // FF02 SC
     { NULL, NULL }, // FF03

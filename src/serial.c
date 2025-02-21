@@ -45,3 +45,8 @@ void setSerialReg8(uint16_t addr, uint8_t val8)
         }
     }
 }
+
+void serialInit(void)
+{
+
+}
