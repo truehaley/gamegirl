@@ -49,8 +49,7 @@ void gbDeinit(void)
     unloadRom(&bootrom);
     unloadCartridge();
     deallocateRam(&wram);
-    deallocateRam(&vram);
-
+    graphicsDeinit();
 }
 
 void cpuCycle(void)
@@ -227,7 +226,7 @@ uint8_t getMem8(uint16_t addr)
 
     } else if( addr >= 0x8000 && addr <= 0x9FFF) {
         // VRAM
-        return vram.contents[addr&0x1FFF];
+        return getVram8(addr&0x1FFF);
 
     } else if( addr >= 0xA000 && addr <= 0xBFFF) {
         // CARTRIDGE RAM
@@ -243,7 +242,7 @@ uint8_t getMem8(uint16_t addr)
 
     } else if( addr >= 0xFE00 && addr <= 0xFE9F ) {
         // OAM
-        return 0x42; // TODO
+        return getOam8(addr - 0xFE00);
 
     } else if( addr >= 0xFEA0 && addr <= 0xFEFF ) {
         // Prohibited
@@ -295,7 +294,7 @@ void setMem8(uint16_t addr, uint8_t val8)
 
     } else if( addr >= 0xFE00 && addr <= 0xFE9F ) {
         // OAM
-        return; // TODO
+        setOam8(addr - 0xFE00, val8);
 
     } else if( addr >= 0xFEA0 && addr <= 0xFEFF ) {
         // Prohibited

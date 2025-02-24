@@ -1,11 +1,38 @@
-#include "cpu.h"
 #include "gb.h"
 #include "gui.h"
-#include "raygui.h"
-#include "raylib.h"
 
 // Set at the beginning of vblank so the gui will redraw the screen
 bool guiUpdateScreen = false;
+
+typedef struct {
+    struct {
+        uint8_t lBits;
+        uint8_t hBits;
+    } line[8];
+} Tile;
+
+typedef struct {
+    Image image;
+    Texture2D tex;
+    bool dirty;
+} TileTex;
+
+struct {
+    union{
+        uint8_t contents[0x2000];
+        struct {
+            Tile tiles[384];
+            struct {
+                uint8_t tileRef[32][32];
+            } tileMap[2];
+        };
+    };
+} vram;
+
+TileTex tileTextures[384];
+
+static RamImage vramImage;
+
 
 typedef struct {
     union {
@@ -18,6 +45,8 @@ typedef struct {
         };
     };
 } PaletteReg;
+
+#define PALETTE_COLOR(paletteReg, palIdx) (((paletteReg) & (0x3<<((palIdx)*2))) >> (palIdx*2))
 
 struct {
     struct {
@@ -80,11 +109,94 @@ struct {
     } LCDC;  // FF40
 } regs;
 
+#define SCREEN_WIDTH    (160)
+#define SCREEN_HEIGHT   (144)
+
+int screenData[SCREEN_HEIGHT][SCREEN_WIDTH];
+
 #define INT_STAT_HBLANK (0x08)
 #define INT_STAT_VBLANK (0x10)
 #define INT_STAT_OAM    (0x20)
 #define INT_STAT_LYC    (0x40)
+#define INT_STAT_ENABLES_MASK  (INT_STAT_HBLANK | INT_STAT_VBLANK | INT_STAT_OAM | INT_STAT_LYC)
 uint8_t activeStatFlags = 0;
+
+#define MODE_OAM    (2)
+#define MODE_DRAW   (3)
+#define MODE_HBLANK (0)
+#define MODE_VBLANK (1)
+
+#define OAM_CYCLES          (80)    // OAM Scan
+#define DRAW_MIN_CYCLES     (172)   // Drawing
+#define DRAW_MAX_CYCLES     (289)
+#define HBLANK_MIN_CYCLES   (87)    // HBLANK
+#define HBLANK_MAX_CYCLES   (204)
+#define SCANLINE_CYCLES     (OAM_CYCLES + DRAW_MIN_CYCLES + HBLANK_MAX_CYCLES)  // 456 cycles
+#define VBLANK_CYCLES       (SCANLINE_CYCLES * 10)  // VBLANK 4560 cycles
+#define FRAME_CYCLES        (SCANLINE_CYCLES * 144 + VBLANK_CYCLES)  // 70224 cycles
+
+#define LCD_VBLANK_LINES    (10)
+#define LCD_TOTAL_SCANLINES (SCREEN_HEIGHT + LCD_VBLANK_LINES)
+
+
+
+static int frameCounter = 0;
+static int scanlineCounter = 0;
+static int totalFrames = 0;
+
+
+void setVram8(uint16_t addr, uint8_t val8)
+{
+    vram.contents[addr&0x1FFF] = val8;
+    if( sizeof(vram.tiles) > addr ) {
+        tileTextures[addr/sizeof(Tile)].dirty = true;
+    }
+}
+
+uint8_t getVram8(uint16_t addr)
+{
+    if( MODE_DRAW == regs.STAT.ppuMode ) {
+        return 0xFF;
+    }
+    return vram.contents[addr&0x1FFF];
+}
+
+typedef struct __attribute__((packed)) {
+    uint8_t yPos;
+    uint8_t xPos;
+    uint8_t tileIndex;
+    union {
+        uint8_t val;
+        struct {
+            uint8_t reserved:4;
+            uint8_t palette:1;
+            uint8_t xFlip:1;
+            uint8_t yFlip:1;
+            uint8_t priority:1;
+        };
+    } attributes;
+} OamEntry;
+
+union {
+    uint8_t contents[40*sizeof(OamEntry)];
+    OamEntry entries[40];
+} oamRam;
+
+void setOam8(uint16_t addr, uint8_t val8)
+{
+    assert(addr < 0xA0);
+    oamRam.contents[addr] = val8;
+}
+
+uint8_t getOam8(uint16_t addr)
+{
+    assert(addr < 0xA0);
+    if( MODE_DRAW == regs.STAT.ppuMode || MODE_OAM == regs.STAT.ppuMode ) {
+        return 0xFF;
+    }
+    return oamRam.contents[addr];
+}
+
 
 void maybeTriggerStatInterrupt(uint8_t newFlag)
 {
@@ -124,13 +236,22 @@ void checkLYC(void)
     }
 }
 
-void setGfxReg8(uint16_t addr, uint8_t val8)
+void setGfxReg8(uint16_t addr, const uint8_t val8)
 {
     switch( addr ) {
         case REG_LCDC_ADDR:
             regs.LCDC.val = val8;
             if(0 == regs.LCDC.graphicsEnable) {
-                // reset the PPU state?
+                // reset the PPU state
+                // initialize framecounter to a value that accounts for where we were in the frame
+                //  when the lcd was turned off.
+                frameCounter = SCANLINE_CYCLES*regs.LY.val + scanlineCounter;
+                regs.LY.val = 0;
+                regs.STAT.ppuMode = 0;
+                scanlineCounter=0;
+                activeStatFlags=0;
+            } else {
+                //regs.STAT.ppuMode = MODE_OAM;
             }
             return;
         case REG_STAT_ADDR:
@@ -138,7 +259,8 @@ void setGfxReg8(uint16_t addr, uint8_t val8)
             if( (0 != (activeStatFlags & val8)) && (0 == (activeStatFlags & regs.STAT.val)) ) {
                 setIntFlag(INT_STAT);
             }
-            regs.STAT.val = val8;
+            // only the enable flags are writeable
+            regs.STAT.val = (regs.STAT.val & ~INT_STAT_ENABLES_MASK) | (val8 & INT_STAT_ENABLES_MASK);
             checkLYC();  // in case interrupt enable flag was changed
             return;
         case REG_SCY_ADDR:
@@ -148,14 +270,21 @@ void setGfxReg8(uint16_t addr, uint8_t val8)
             regs.SCX.val = val8;
             return;
         case REG_LY_ADDR:
-            regs.LY.val = val8;
-            checkLYC();
+            // Not writeable
+            //regs.LY.val = val8;
+            //checkLYC();
             return;
         case REG_LYC_ADDR:
             regs.LYC.val = val8;
             checkLYC();
             return;
         case REG_BGP_ADDR:
+            if( val8 != regs.BGP.val ) {
+                // Palette update, mark all tiles as dirty
+                for(int i=0; i<384; i++) {
+                    tileTextures[i].dirty = true;
+                }
+            }
             regs.BGP.val = val8;
             return;
         case REG_OBP0_ADDR:
@@ -168,7 +297,7 @@ void setGfxReg8(uint16_t addr, uint8_t val8)
             regs.WY.val = val8;
             return;
         case REG_WX_ADDR:
-            regs.WY.val = val8;
+            regs.WX.val = val8;
             return;
     }
 }
@@ -209,47 +338,202 @@ uint8_t getGfxReg8(uint16_t addr)
 }
 
 
-#define MODE_OAM    (2)
-#define MODE_DRAW   (3)
-#define MODE_HBLANK (0)
-#define MODE_VBLANK (1)
+class BgFetcher {
+protected:
+    enum {
+        TILEREF_1 = 0,
+        TILEREF_2,
+        TILEDATA_LOW_1,
+        TILEDATA_LOW_2,
+        TILEDATA_HIGH_1,
+        TILEDATA_HIGH_2,
+        FIFO_PUSH_1,
+        FIFO_PUSH_2
+    } state;
+    bool newline;
+    int xTile;
+    //int windowLine;
 
-#define OAM_CYCLES          (80)    // OAM Scan
-#define DRAW_MIN_CYCLES     (172)   // Drawing
-#define DRAW_MAX_CYCLES     (289)
-#define HBLANK_MIN_CYCLES   (87)    // HBLANK
-#define HBLANK_MAX_CYCLES   (204)
-#define SCANLINE_CYCLES     (OAM_CYCLES + DRAW_MIN_CYCLES + HBLANK_MAX_CYCLES)  // 456 cycles
-#define VBLANK_CYCLES       (SCANLINE_CYCLES * 10)  // VBLANK 4560 cycles
-#define FRAME_CYCLES        (SCANLINE_CYCLES * 144 + VBLANK_CYCLES)  // 70224 cycles
+    struct {
+        uint8_t hBits;  // 8 entries, 2 bits per pixel
+        uint8_t lBits;
+        int depth;
+    } fifo;
 
-#define LCD_DISPLAY_LINES   (144)
-#define LCD_VBLANK_LINES    (10)
-#define LCD_TOTAL_LINES     (LCD_DISPLAY_LINES + LCD_VBLANK_LINES)
+    struct {
+        int map;
+        int x,y;
+        int row;
+        int ref;
+        Tile *tile;
+        uint8_t lBits, hBits;
+    } tileInfo;
 
-static int frameCounter = 0;
-static int scanlineCounter = 0;
-static int totalFrames = 0;
+public:
+    void reset(bool newScanline) {
+        state = TILEREF_1;
+        newline = newScanline;
+        xTile = 0;
+        //windowLine = 0;
+        fifo.depth = 0;
+    }
+
+    bool empty(void) {
+        return (0 == fifo.depth);
+    }
+
+    uint8_t pop(void) {
+        assert( !empty() );
+        int palIdx = ((fifo.hBits & 0x80) >> 6) | (((fifo.lBits & 0x80) >> 7));
+        fifo.hBits <<= 1;
+        fifo.lBits <<= 1;
+        fifo.depth--;
+        return palIdx;
+    }
+
+    void cycle(uint8_t xCoord, bool windowMode, uint8_t windowLine) {
+        switch(state) {
+            case TILEREF_1:
+                if( windowMode ) {
+                    tileInfo.map = regs.LCDC.windowTileMap;
+                    tileInfo.x = (xTile & 0x1F);
+                    tileInfo.y = (windowLine / 8) & 0x1F;
+                    tileInfo.row = (windowLine & 0x7);
+                } else {
+                    tileInfo.map = regs.LCDC.bgTileMap;
+                    tileInfo.x = ((regs.SCX.val/8) + xTile) & 0x1F;
+                    tileInfo.y = ((regs.SCY.val + regs.LY.val)/8) & 0x1F;
+                    tileInfo.row = ((regs.SCY.val + regs.LY.val) & 0x7);
+                }
+                state = TILEREF_2;
+                break;
+            case TILEREF_2:
+                assert(tileInfo.map < 2);
+                assert(tileInfo.x < 32);
+                assert(tileInfo.y < 32);
+
+                if( 1 == regs.LCDC.bgWinTileData ) {
+                    tileInfo.ref = vram.tileMap[tileInfo.map].tileRef[tileInfo.y][tileInfo.x];
+                    assert( (0 <= tileInfo.ref) && (256 > tileInfo.ref) );
+                } else {
+                    tileInfo.ref = 256 + (int8_t)vram.tileMap[tileInfo.map].tileRef[tileInfo.y][tileInfo.x];
+                    assert( (128 <= tileInfo.ref ) && (384 > tileInfo.ref) );
+                }
+                tileInfo.tile = &vram.tiles[tileInfo.ref];
+                state = TILEDATA_LOW_1;
+                break;
+
+            case TILEDATA_LOW_1:
+                // just a timing delay
+                state = TILEDATA_LOW_2;
+                break;
+            case TILEDATA_LOW_2:
+                assert(tileInfo.row < 8);
+                tileInfo.lBits = tileInfo.tile->line[tileInfo.row].lBits;
+                state = TILEDATA_HIGH_1;
+                break;
+
+            case TILEDATA_HIGH_1:
+                // just a timing delay
+                state = TILEDATA_HIGH_2;
+                break;
+            case TILEDATA_HIGH_2:
+                tileInfo.hBits = tileInfo.tile->line[tileInfo.row].hBits;
+                // The first time the background fetcher completes this step on a scanline the status is
+                //  fully reset and operation restarts at Step 1.
+                if( true == newline ) {
+                    state = TILEREF_1;
+                    newline = false;
+                } else {
+                    state = FIFO_PUSH_1;
+                }
+                break;
+
+            case FIFO_PUSH_1:
+                // we stay here until the fifo is empty
+                state = (empty())? FIFO_PUSH_2 : FIFO_PUSH_1;
+                break;
+            case FIFO_PUSH_2:
+                // add pixels to the fifo!
+                fifo.lBits = tileInfo.lBits;
+                fifo.hBits = tileInfo.hBits;
+                fifo.depth = 8;
+                xTile++;
+                state = TILEREF_1;
+                break;
+        }
+    }
+} bgFetch;
 
 void ppuCycles(int cycles)
 {
+    static uint8_t xSkip = 0;
+    static uint8_t xCoordinate = 0;
+    static bool windowActive = false;
+    static uint8_t windowLine = 0;
+
     while(cycles--) {
-        if(1 == regs.LCDC.graphicsEnable) {
+        if(0 == regs.LCDC.graphicsEnable) {
+            // When the LCD is disabled, we still make use a frame counter to make sure that the
+            //  emulator UI is refreshed at roughly the same 60Hz rate.
+            // frameCounter is intialized when the LCD is disabled to account for any time already
+            //   spent in the current refresh cycle.
             frameCounter++;
+            if(FRAME_CYCLES <= frameCounter) {
+                guiUpdateScreen = true;
+                frameCounter = 0;
+            }
+
+        } else { // if(1 == regs.LCDC.graphicsEnable) {
             scanlineCounter++;
 
             switch( regs.STAT.ppuMode ) {
                 case MODE_OAM:
+                    /*  oam.x != 0
+                        LY+ 16 >= oam.y
+                        LY+ 16 < oam.y+h    */
+
                     if( OAM_CYCLES <= scanlineCounter ) {
                         // advance to DRAW
+                        xCoordinate = 0;
+                        windowActive = false;
                         regs.STAT.ppuMode = MODE_DRAW;
                         activeStatFlags &= ~INT_STAT_OAM;
+                        bgFetch.reset(true);
+                        xSkip = regs.SCX.val & 0x7;
                     }
                     break;
 
                 case MODE_DRAW:
+                    bgFetch.cycle(xCoordinate, windowActive, windowLine);
+                    if(!bgFetch.empty()) {
+                        int bgPalIdx = bgFetch.pop();
 
-                    if( (OAM_CYCLES + DRAW_MIN_CYCLES) <= scanlineCounter ) {
+                        if(0 == xCoordinate && 0 < xSkip) {
+                            xSkip--;
+                        } else {
+                            assert(regs.LY.val < SCREEN_HEIGHT);
+                            assert(xCoordinate < SCREEN_WIDTH);
+                            if(regs.LCDC.bgWinEnable) {
+                                screenData[regs.LY.val][xCoordinate] = PALETTE_COLOR(regs.BGP.val, bgPalIdx);
+                            } else {
+                                screenData[regs.LY.val][xCoordinate] = 0;
+                            }
+                            xCoordinate++;
+
+                            if(true == regs.LCDC.windowEnable) {
+                                if( (0 < windowLine) || (regs.WY.val == regs.LY.val) ) {
+                                    if( !windowActive && (regs.WX.val - 7) <= xCoordinate ) {
+                                        windowActive = true;
+                                        bgFetch.reset(false);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if( SCREEN_WIDTH <= xCoordinate  ) {
+                        assert((OAM_CYCLES + DRAW_MAX_CYCLES) >= scanlineCounter);
                         // advance to HBLANK
                         regs.STAT.ppuMode = MODE_HBLANK;
                         maybeTriggerStatInterrupt(INT_STAT_HBLANK);
@@ -257,27 +541,30 @@ void ppuCycles(int cycles)
                     break;
 
                 case MODE_HBLANK:
-
                     if( (SCANLINE_CYCLES) <= scanlineCounter ) {
                         scanlineCounter = 0;
                         regs.LY.val++;
 
                         checkLYC();
 
-                        if( LCD_DISPLAY_LINES < regs.LY.val ) {
+                        if( SCREEN_HEIGHT <= regs.LY.val ) {
                             regs.STAT.ppuMode = MODE_VBLANK;
                             maybeTriggerStatInterrupt(INT_STAT_VBLANK);
                             setIntFlag(INT_VBLANK);  // always triggered
+                            windowLine = 0;
                             if(true == bootRomActive) {
-                                // refresh the screen 10 times less often while the bootrom is running
-                                //  letting us speed throught the boot screen!
-                                guiUpdateScreen = ((totalFrames % 10) == 0);
+                                // refresh the gui 10 times less often while the bootrom is running,
+                                //  letting us speed through the boot screen!
+                                guiUpdateScreen = ((totalFrames % 60) == 0);
                             } else {
                                 guiUpdateScreen = true;
                             }
                         } else {
                             regs.STAT.ppuMode = MODE_OAM;
                             maybeTriggerStatInterrupt(INT_STAT_OAM);
+                            if(true == windowActive) {
+                                windowLine++;
+                            }
                         }
                         activeStatFlags &= ~INT_STAT_HBLANK;
                     }
@@ -289,7 +576,7 @@ void ppuCycles(int cycles)
                         totalFrames++;
                         scanlineCounter = 0;
                         regs.LY.val++;
-                        if( LCD_TOTAL_LINES <= regs.LY.val ) {
+                        if( LCD_TOTAL_SCANLINES <= regs.LY.val ) {
                             regs.LY.val = 0;
                             frameCounter = 0;
 
@@ -297,17 +584,13 @@ void ppuCycles(int cycles)
                             maybeTriggerStatInterrupt(INT_STAT_OAM);
                             activeStatFlags &= ~INT_STAT_VBLANK;
                         }
-
                         checkLYC();
-
                     }
                     break;
             }
         }
     }
 }
-
-RamImage vram;
 
 static const Color paletteColor[4] = {
     WHITE,
@@ -316,27 +599,20 @@ static const Color paletteColor[4] = {
     BLACK
 };
 
+/*
 static const Color screenPaletteColor[4] = {
-    (Color){ 175, 203, 70, 255 },
-    (Color){ 121, 170, 109, 255 },
-    (Color){ 34, 111, 95, 255 },
-    (Color){ 8, 41, 85, 255 }
+    (Color){ 155, 188, 15, 255 },
+    (Color){ 139, 172, 15, 255 },
+    (Color){ 48,  98,  48, 255 },
+    (Color){ 15,  56,  15, 255 }
 };
-
-typedef struct {
-    struct {
-        uint8_t lBits;
-        uint8_t hBits;
-    } line[8];
-} Tile;
-
-typedef struct {
-    Image image;
-    Texture2D tex;
-    bool dirty;
-} TileTex;
-
-TileTex tileTextures[384];
+*/
+static const Color screenPaletteColor[4] = {
+    (Color){ 175, 203, 70,  255 },
+    (Color){ 121, 170, 109, 255 },
+    (Color){ 34,  111, 95,  255 },
+    (Color){ 8,   41,  85,  255 }
+};
 
 void graphicsInit(void)
 {
@@ -345,8 +621,10 @@ void graphicsInit(void)
     scanlineCounter = 0;
     totalFrames = 0;
     activeStatFlags = 0;
-    allocateRam(&vram, 8192);
-    addRamView(&vram, "VRAM", 0x8000);
+    memset(&vram, 0, sizeof(vram));
+    vramImage.size = 0x2000;
+    vramImage.contents = vram.contents;
+    addRamView(&vramImage, "VRAM", 0x8000);
     guiUpdateScreen = false;
     memset(&tileTextures, 0, sizeof(tileTextures));
     // setup initial blank tile textures
@@ -354,18 +632,19 @@ void graphicsInit(void)
         tileTextures[i].image = GenImageColor(8, 8, paletteColor[0]);
         tileTextures[i].tex = LoadTextureFromImage(tileTextures[i].image);
     }
+    memset(screenData, 0, sizeof(screenData));
+    bgFetch.reset(true);
 }
 
-void setVram8(uint16_t addr, uint8_t val8)
+void graphicsDeinit(void)
 {
-    vram.contents[addr&0x1FFF] = val8;
-    if( (384*sizeof(Tile)) > addr ) {
-        tileTextures[addr/sizeof(Tile)].dirty = true;
-    }
 }
 
 static void guiRegenTileTex(int index, Tile *tile, PaletteReg pal)
 {
+    // TODO: consider rendering tile with all three palettes to the same texture
+    // Then when drawing the tile, the appropriate portion of the texture can be selected
+    //  based on the desired palette in use.
     ImageClearBackground(&tileTextures[index].image, paletteColor[0]);
     for( int y = 0; y < 8; y++ ) {
         for( int x = 0; x < 8; x++ ) {
@@ -383,13 +662,11 @@ static void guiRegenTileTex(int index, Tile *tile, PaletteReg pal)
 
 static void guiRegenDirtyTiles(void)
 {
-    uint16_t offset = 0;
     for(int i=0; i<384; i++) {
         if(true == tileTextures[i].dirty) {
-            guiRegenTileTex(i, (Tile *)&vram.contents[offset], regs.BGP);
+            guiRegenTileTex(i, (Tile *)&vram.tiles[i], regs.BGP);
             tileTextures[i].dirty = false;
         }
-        offset += sizeof(Tile);
     }
 }
 
@@ -417,9 +694,9 @@ static void guiDrawMapFrame(Vector2 anchor, uint16_t x, uint16_t y, Color color)
     float left, right, top, bottom;
     //bottom := (SCY + 143) % 256 and right := (SCX + 159) % 256
     left = anchor.x + x;
-    right = anchor.x + ((x + 159) % 256);
+    right = anchor.x + ((x + 160) % 256);
     top = anchor.y + y;
-    bottom = ((y + 143) % 256) + anchor.y;
+    bottom = ((y + 144) % 256) + anchor.y;
     if(left < right) {
         // normal top & bottom lines
         DrawLine(left, top, right, top, color);
@@ -468,22 +745,20 @@ static void guiDrawTileMap(Vector2 anchor, const uint8_t map)
 {
     // Width x Height = 256 x 256 or 288 x 288
     Vector2 tileAnchor = anchor;
-    uint8_t tileIndex;
+    uint8_t tileRef;
     Tile *tile;
-    uint16_t offset = 0x1800 + 0x400 * map;
 
     for( int y = 0; y < 32; y++ ) {
         tileAnchor.x = anchor.x;
         for( int x = 0; x < 32; x++ ) {
-            tileIndex = vram.contents[offset++];
+            tileRef = vram.tileMap[map].tileRef[y][x];
             if( 1 == regs.LCDC.bgWinTileData ) {
-                tile = (Tile *)&vram.contents[tileIndex*16];
-                guiDrawTile(tileAnchor, tileIndex, tile, regs.BGP, 1, 0);
+                tile = (Tile *)&vram.tiles[tileRef];
+                guiDrawTile(tileAnchor, tileRef, tile, regs.BGP, 1, 0);
             } else {
-                tile = (Tile *)&vram.contents[ (256+((int8_t)tileIndex))*16 ];
-                guiDrawTile(tileAnchor, (256+(int8_t)tileIndex), tile, regs.BGP, 1, 0);
+                tile = (Tile *)&vram.tiles[ (256+((int8_t)tileRef))*16 ];
+                guiDrawTile(tileAnchor, (256+(int8_t)tileRef), tile, regs.BGP, 1, 0);
             }
-            //guiDrawTile(tileAnchor, tile, regs.BGP, 1, 0);
             tileAnchor.x += 8;
         }
         tileAnchor.y += 8;
@@ -496,8 +771,14 @@ static void guiDrawTileMap(Vector2 anchor, const uint8_t map)
         }
         if( (1 == regs.LCDC.windowEnable)
          && (map == regs.LCDC.windowTileMap) ) {
-             // draw window frame
-             guiDrawMapFrame(anchor, 166-regs.WX.val, 143-regs.WY.val, BLUE);
+            if(regs.WX.val < SCREEN_WIDTH && regs.WY.val < SCREEN_HEIGHT) {
+                    // draw window frame
+                if( regs.WX.val < 7 ) {
+                    DrawRectangle(anchor.x + (7-regs.WX.val), anchor.y, SCREEN_WIDTH, SCREEN_HEIGHT-regs.WY.val, ColorAlpha(BLUE,0.3));
+                } else {
+                    DrawRectangle(anchor.x, anchor.y, SCREEN_WIDTH-(regs.WX.val-7), SCREEN_HEIGHT-regs.WY.val, ColorAlpha(BLUE,0.3));
+                }
+            }
         }
     }
 }
@@ -506,7 +787,7 @@ static void guiDrawTileData(Vector2 anchor)
 {
     // Width x Height = 18*17 x 25*17 = 306 x 425
 
-    uint16_t offset = 0;
+    uint16_t index = 0;
     Vector2 tileAnchor = anchor;
 
     const Color lineColor = GetColor(GuiGetStyle(DEFAULT,LINE_COLOR));
@@ -533,8 +814,8 @@ static void guiDrawTileData(Vector2 anchor)
         tileAnchor.x += FONTWIDTH*2;
 
         for( int x = 0; x < 16; x++ ) {
-            guiDrawTile(tileAnchor, offset/16, (Tile *)&vram.contents[offset], regs.BGP, 2, 0);
-            offset += sizeof(Tile);
+            guiDrawTile(tileAnchor, index, (Tile *)&vram.tiles[index], regs.BGP, 2, 0);
+            index++;
             tileAnchor.x += 2*8+1;
         }
 
@@ -548,7 +829,20 @@ static void guiDrawTileData(Vector2 anchor)
 
 void guiDrawScreen(Vector2 anchor)
 {
-    DrawRectangleV(anchor, (Vector2){ 160*3, 144*3 }, screenPaletteColor[0]);
+    DrawRectangleV(anchor, (Vector2){ SCREEN_WIDTH*3, SCREEN_HEIGHT*3 }, ColorAlpha(screenPaletteColor[0], 0.7));
+    if(1 == regs.LCDC.graphicsEnable) {
+        //DrawRectangleV(anchor, (Vector2){ 160*3, 144*3 }, screenPaletteColor[0]);
+        Rectangle pixelRect = { anchor.x, anchor.y, 2.4, 2.4 };
+        for( int y = 0; y < SCREEN_HEIGHT; y++ ) {
+            pixelRect.x = anchor.x;
+            for( int x = 0; x < SCREEN_WIDTH; x++ ) {
+                int palColor = screenData[y][x];
+                DrawRectangleRec(pixelRect, screenPaletteColor[palColor]);
+                pixelRect.x += 2+1;
+            }
+            pixelRect.y += 2+1;
+        }
+    }
     guiUpdateScreen = false;
 }
 

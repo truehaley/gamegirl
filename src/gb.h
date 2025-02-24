@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <math.h>
+#include <assert.h>
 
 #include "raylib.h"
 #include "utils.h"

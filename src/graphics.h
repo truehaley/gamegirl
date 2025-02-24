@@ -20,8 +20,14 @@ uint8_t getGfxReg8(uint16_t addr);
 void ppuCycles(int dots);
 
 void setVram8(uint16_t addr, uint8_t val8);
+uint8_t getVram8(uint16_t addr);
+void setOam8(uint16_t addr, uint8_t val8);
+uint8_t getOam8(uint16_t addr);
+
+
 
 void graphicsInit(void);
+void graphicsDeinit(void);
 void guiDrawGraphics(void);
 
 
