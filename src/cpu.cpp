@@ -745,7 +745,7 @@ static bool ld_r8_r8(uint8_t instruction)
     const uint8_t r8_b  = INST_R8_B_EXTRACT(instruction);
     setReg8(r8_a,getReg8(r8_b));
     // no flags affected
-    return ((R8_B == r8_a) && (R8_B == r8_b));
+    return false; // ((R8_B == r8_a) && (R8_B == r8_b));
 }
 
 static bool pop_r16(uint8_t instruction)
