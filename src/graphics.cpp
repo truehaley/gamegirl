@@ -397,10 +397,12 @@ protected:
     } tileInfo;
 
 public:
-    void reset(bool newScanline) {
+    void reset(bool newScanline, bool windowMode) {
         state = TILEREF_1;
         newline = newScanline;
-        xTile = 0;
+        if( newScanline || windowMode ) {
+            xTile = 0;
+        }
         //windowLine = 0;
         fifo.depth = 0;
     }
@@ -497,12 +499,144 @@ public:
     }
 } bgFetch;
 
+typedef struct {
+    uint8_t palRef:2;
+    uint8_t pal:1;
+    uint8_t pri:1;
+} ObjPixel;
+
+class ObjFetcher {
+protected:
+    enum {
+        TILEREF_1 = 0,
+        TILEREF_2,
+        TILEDATA_LOW_1,
+        TILEDATA_LOW_2,
+        TILEDATA_HIGH_1,
+        TILEDATA_HIGH_2,
+        FIFO_PUSH_1,
+        FIFO_PUSH_2
+    } state;
+
+    struct {
+        uint8_t hBits;  // 8 entries, 2 bits per pixel
+        uint8_t lBits;
+        uint8_t pri;
+        uint8_t pal;
+        int depth;
+    } fifo;
+
+    struct {
+        int row;
+        int ref;
+        int visible;
+        Tile *tile;
+        uint8_t lBits, hBits;
+    } tileInfo;
+
+public:
+    void reset() {
+        state = TILEREF_1;
+        fifo.lBits = 0;
+        fifo.hBits = 0;
+        fifo.depth = 0;
+    }
+
+    bool empty(void) {
+        return (0 == fifo.depth);
+    }
+
+    ObjPixel pop(void) {
+        assert( !empty() );
+        ObjPixel pix;
+        pix.palRef = ((fifo.hBits & 0x80) >> 6) | (((fifo.lBits & 0x80) >> 7));
+        pix.pal = ((fifo.pal & 0x80) >> 7);
+        pix.pri = ((fifo.pri & 0x80) >> 7);
+        fifo.hBits <<= 1;
+        fifo.lBits <<= 1;
+        fifo.pri <<=1;
+        fifo.pal <<=1;
+        fifo.depth--;
+        return pix;
+    }
+
+    bool cycle(OamEntry *object) {
+        switch(state) {
+            case TILEREF_1:
+                tileInfo.ref = (0 == regs.LCDC.objSize)? object->tileIndex : (object->tileIndex & 0xFE);
+                tileInfo.visible = MIN(8 , object->xPos);
+                tileInfo.row = ((regs.LY.val - object->yPos) & 0xF);
+                if( 1 == object->attributes.yFlip ) {
+                    tileInfo.row = (0 == regs.LCDC.objSize)? (7 - tileInfo.row) : (15 - tileInfo.row);
+                }
+                state = TILEREF_2;
+                break;
+            case TILEREF_2:
+                tileInfo.tile = &vram.tiles[tileInfo.ref];
+                state = TILEDATA_LOW_1;
+                break;
+
+            case TILEDATA_LOW_1:
+                // just a timing delay
+                state = TILEDATA_LOW_2;
+                break;
+            case TILEDATA_LOW_2:
+                assert((0 == regs.LCDC.objSize)? (tileInfo.row < 8) : (tileInfo.row < 16));
+                tileInfo.lBits = tileInfo.tile->line[tileInfo.row].lBits;
+                if( 1 == object->attributes.xFlip ) {
+                    tileInfo.lBits = ((tileInfo.lBits & 0xaa) >> 1) | ((tileInfo.lBits & 0x55) << 1);
+                    tileInfo.lBits = ((tileInfo.lBits & 0xcc) >> 2) | ((tileInfo.lBits & 0x33) << 2);
+                    tileInfo.lBits = ((tileInfo.lBits & 0xf0) >> 4) | ((tileInfo.lBits & 0x0f) << 4);
+                }
+                state = TILEDATA_HIGH_1;
+                break;
+
+            case TILEDATA_HIGH_1:
+                // just a timing delay
+                state = TILEDATA_HIGH_2;
+                break;
+            case TILEDATA_HIGH_2:
+                tileInfo.hBits = tileInfo.tile->line[tileInfo.row].hBits;
+                if( 1 == object->attributes.xFlip ) {
+                    tileInfo.hBits = ((tileInfo.hBits & 0xaa) >> 1) | ((tileInfo.hBits & 0x55) << 1);
+                    tileInfo.hBits = ((tileInfo.hBits & 0xcc) >> 2) | ((tileInfo.hBits & 0x33) << 2);
+                    tileInfo.hBits = ((tileInfo.hBits & 0xf0) >> 4) | ((tileInfo.hBits & 0x0f) << 4);
+                }
+                state = FIFO_PUSH_1;
+                break;
+
+            case FIFO_PUSH_1: {
+                // new pixels need to be mixed in with existing pixels
+                uint8_t emptyBits = ~(fifo.hBits | fifo.lBits);
+                fifo.lBits |= ((tileInfo.lBits << (8-tileInfo.visible)) & emptyBits);
+                fifo.hBits |= ((tileInfo.hBits << (8-tileInfo.visible)) & emptyBits);
+                fifo.pal = (fifo.pal & ~emptyBits) | (((0 == object->attributes.palette)? 0x00 : 0xFF) & emptyBits);
+                fifo.pri = (fifo.pri & ~emptyBits) | (((0 == object->attributes.priority)? 0x00 : 0xFF) & emptyBits);
+                fifo.depth = tileInfo.visible;
+                state = FIFO_PUSH_2;
+                break;
+            }
+            case FIFO_PUSH_2:
+                // just a timing delay
+                state = TILEREF_1;
+                return true;
+                break;
+        }
+        return false;
+    }
+} objFetch;
+
+#define MAX_OBJECTS_PER_LINE    (10)
+OamEntry scanlineObjects[MAX_OBJECTS_PER_LINE];
+
 void ppuCycles(int cycles)
 {
     static uint8_t xSkip = 0;
     static uint8_t xCoordinate = 0;
     static bool windowActive = false;
     static uint8_t windowLine = 0;
+    static int foundObjects = 0;
+    static OamEntry *objInProcess = nullptr;
 
     while(cycles--) {
         if(0 == regs.LCDC.graphicsEnable) {
@@ -521,9 +655,19 @@ void ppuCycles(int cycles)
 
             switch( regs.STAT.ppuMode ) {
                 case MODE_OAM:
-                    /*  oam.x != 0
-                        LY+ 16 >= oam.y
-                        LY+ 16 < oam.y+h    */
+                    // process one OAM entry every other cycle
+                    if( 0x01 == (scanlineCounter & 0x01)) {
+                        OamEntry *object = &oamRam.entries[scanlineCounter >> 1];
+
+                        /*  oam.x != 0
+                            LY+ 16 >= oam.y
+                            LY+ 16 < oam.y+h    */
+                        if( ((regs.LY.val + 16) >= object->yPos)
+                        &&  ((regs.LY.val + 16) < (object->yPos + ((0 == regs.LCDC.objSize)? 8 : 16)))
+                        &&  (MAX_OBJECTS_PER_LINE > foundObjects) ) {
+                            scanlineObjects[foundObjects++] = *object;
+                        }
+                    }
 
                     if( OAM_CYCLES <= scanlineCounter ) {
                         // advance to DRAW
@@ -531,25 +675,79 @@ void ppuCycles(int cycles)
                         windowActive = false;
                         regs.STAT.ppuMode = MODE_DRAW;
                         activeStatFlags &= ~INT_STAT_OAM;
-                        bgFetch.reset(true);
+                        bgFetch.reset(true, false);
                         xSkip = regs.SCX.val & 0x7;
+                        objInProcess = nullptr;
                     }
                     break;
 
                 case MODE_DRAW:
+
+                    if( nullptr == objInProcess ) {
+                        // check
+                        for(int i=0; i<foundObjects; i++) {
+                            if( xCoordinate + 8 >= scanlineObjects[i].xPos ) {
+                                objInProcess = &scanlineObjects[i];
+                                //bgFetch.reset(false, false);
+                                objFetch.reset();
+                                objFetch.cycle(objInProcess);
+                                break;
+                            }
+                        }
+                    } else {
+                        // object fetching takes precedence
+                        if( true == objFetch.cycle(objInProcess) ) {
+                            // this object fetch is complete
+                            // set the x val really high so it isn't processed again
+                            objInProcess->xPos = 0xFF;
+                            objInProcess = nullptr;
+                        }
+                        break;
+                    }
+                    if(nullptr != objInProcess) {
+                        break;
+                    }
+
+
                     bgFetch.cycle(xCoordinate, windowActive, windowLine);
                     if(!bgFetch.empty()) {
-                        int bgPalIdx = bgFetch.pop();
+                        int bgPalRef = bgFetch.pop();
 
                         if(0 == xCoordinate && 0 < xSkip) {
                             xSkip--;
                         } else {
                             assert(regs.LY.val < SCREEN_HEIGHT);
                             assert(xCoordinate < SCREEN_WIDTH);
-                            if(regs.LCDC.bgWinEnable) {
-                                screenData[regs.LY.val][xCoordinate] = PALETTE_COLOR(regs.BGP.val, bgPalIdx);
+
+                            if(!objFetch.empty()) {
+                                ObjPixel objPix = objFetch.pop();
+                                uint8_t palette = (0==objPix.pal)? regs.OBP0.val : regs.OBP1.val;
+                                if(0 == objPix.pri) {
+                                    // object takes priority
+                                    if( (1 == regs.LCDC.objEnable) && (0 != objPix.palRef) ) {
+                                        screenData[regs.LY.val][xCoordinate] = PALETTE_COLOR(palette, objPix.palRef);
+                                    } else if( 1 == regs.LCDC.bgWinEnable ) {
+                                        screenData[regs.LY.val][xCoordinate] = PALETTE_COLOR(regs.BGP.val, bgPalRef);
+                                    } else {
+                                        screenData[regs.LY.val][xCoordinate] = 0;
+                                    }
+                                } else {
+                                    // background takes priority
+                                    if( (1 == regs.LCDC.objEnable) && (0 == bgPalRef) && (0 != objPix.palRef) ) {
+                                        screenData[regs.LY.val][xCoordinate] = PALETTE_COLOR(palette, objPix.palRef);
+                                    } else if( 1 == regs.LCDC.bgWinEnable ) {
+                                        screenData[regs.LY.val][xCoordinate] = PALETTE_COLOR(regs.BGP.val, bgPalRef);
+                                    } else {
+                                        screenData[regs.LY.val][xCoordinate] = 0;
+                                    }
+                                }
+
                             } else {
-                                screenData[regs.LY.val][xCoordinate] = 0;
+                                if(regs.LCDC.bgWinEnable) {
+                                    screenData[regs.LY.val][xCoordinate] = PALETTE_COLOR(regs.BGP.val, bgPalRef);
+                                } else {
+                                    screenData[regs.LY.val][xCoordinate] = 0;
+                                }
                             }
                             xCoordinate++;
 
@@ -557,7 +755,7 @@ void ppuCycles(int cycles)
                                 if( (0 < windowLine) || (regs.WY.val == regs.LY.val) ) {
                                     if( !windowActive && (regs.WX.val - 7) <= xCoordinate ) {
                                         windowActive = true;
-                                        bgFetch.reset(false);
+                                        bgFetch.reset(false, true);
                                     }
                                 }
                             }
@@ -569,6 +767,7 @@ void ppuCycles(int cycles)
                         // advance to HBLANK
                         regs.STAT.ppuMode = MODE_HBLANK;
                         maybeTriggerStatInterrupt(INT_STAT_HBLANK);
+                        objFetch.reset();
                     }
                     break;
 
@@ -597,6 +796,8 @@ void ppuCycles(int cycles)
                             if(true == windowActive) {
                                 windowLine++;
                             }
+                            memset(scanlineObjects, 0xFF, sizeof(scanlineObjects));
+                            foundObjects = 0;
                         }
                         activeStatFlags &= ~INT_STAT_HBLANK;
                     }
@@ -665,7 +866,7 @@ void graphicsInit(void)
         tileTextures[i].tex = LoadTextureFromImage(tileTextures[i].image);
     }
     memset(screenData, 0, sizeof(screenData));
-    bgFetch.reset(true);
+    bgFetch.reset(true, false);
     oamImage.size = OAM_SIZE;
     oamImage.contents = oamRam.contents;
     addRamView(&oamImage, "OAM", 0xFE00);
