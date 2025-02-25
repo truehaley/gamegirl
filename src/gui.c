@@ -1,3 +1,4 @@
+#include "controls.h"
 #include "gb.h"
 #include "graphics.h"
 #include "raylib.h"
@@ -85,24 +86,8 @@ void gui(void)
     while (!WindowShouldClose() && keepRunning)
     {
         // Process keys
-         if(IsKeyPressed(KEY_SPACE)) {
-            takeStep = true;
-        }
-        if(IsKeyPressed(KEY_TAB)) {
-            takeBigStep = true;
-        }
-        if(IsKeyPressed(KEY_UP)) {
-            instructionsPerTab+= (IsKeyDown(KEY_LEFT_SHIFT))?100:10;
-        }
-        if(IsKeyPressed(KEY_DOWN)) {
-            instructionsPerTab-= (IsKeyDown(KEY_LEFT_SHIFT))?100:10;
-        }
-        if(IsKeyPressed(KEY_LEFT)) {
-            instructionsPerTab-=1;
-        }
-        if(IsKeyPressed(KEY_RIGHT)) {
-            instructionsPerTab+=1;
-        }
+        takeStep = IsKeyPressed(KEY_SPACE);
+        takeBigStep = IsKeyPressed(KEY_TAB);
         if(IsKeyPressed(KEY_R)) {
             if(IsKeyDown(KEY_LEFT_SHIFT)) {
                 resetCpu();
@@ -110,6 +95,17 @@ void gui(void)
                 running=true;
             }
         }
+
+        ControlState controls;
+        controls.buttonA = IsKeyDown(KEY_L);
+        controls.buttonB = IsKeyDown(KEY_K);
+        controls.select = IsKeyDown(KEY_V);
+        controls.start = IsKeyDown(KEY_B);
+        controls.dpadRight = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
+        controls.dpadLeft = IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
+        controls.dpadUp = IsKeyDown(KEY_UP) || IsKeyDown(KEY_W);
+        controls.dpadDown = IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S);
+        updateControls(controls);
 
         if( takeStep ) {
             executeInstruction(systemBreakpoint);
