@@ -1,5 +1,7 @@
+#include "graphics.h"
 #include "gb.h"
 #include "gui.h"
+#include "mem.h"
 
 // Set at the beginning of vblank so the gui will redraw the screen
 bool guiUpdateScreen = false;
@@ -60,6 +62,10 @@ struct {
     PaletteReg OBP1;    // FF49
     PaletteReg OBP0;    // FF48
     PaletteReg BGP;     // FF47
+
+    struct {
+        uint8_t val;
+    } OAM;
 
     struct {
         uint8_t val;
@@ -177,26 +183,40 @@ typedef struct __attribute__((packed)) {
     } attributes;
 } OamEntry;
 
+#define OAM_SIZE        (40 * sizeof(OamEntry))
+
 union {
-    uint8_t contents[40*sizeof(OamEntry)];
+    uint8_t contents[OAM_SIZE];
     OamEntry entries[40];
 } oamRam;
 
+static RamImage oamImage;
+
+
+uint8_t oamDmaOffset = OAM_SIZE;
+
 void setOam8(uint16_t addr, uint8_t val8)
 {
-    assert(addr < 0xA0);
+    assert(addr < OAM_SIZE);
     oamRam.contents[addr] = val8;
 }
 
 uint8_t getOam8(uint16_t addr)
 {
-    assert(addr < 0xA0);
+    assert(addr < OAM_SIZE);
     if( MODE_DRAW == regs.STAT.ppuMode || MODE_OAM == regs.STAT.ppuMode ) {
         return 0xFF;
     }
     return oamRam.contents[addr];
 }
 
+void oamDmaCycle(void)
+{
+    if( OAM_SIZE > oamDmaOffset ) {
+        oamRam.contents[oamDmaOffset] = getMem8((regs.OAM.val << 8) + oamDmaOffset);
+        oamDmaOffset++;
+    }
+}
 
 void maybeTriggerStatInterrupt(uint8_t newFlag)
 {
@@ -278,6 +298,11 @@ void setGfxReg8(uint16_t addr, const uint8_t val8)
             regs.LYC.val = val8;
             checkLYC();
             return;
+        case REG_OAM_ADDR:
+            regs.OAM.val = val8;
+            // kickoff the dma cycle by resetting the offset
+            oamDmaOffset = 0;
+            return;
         case REG_BGP_ADDR:
             if( val8 != regs.BGP.val ) {
                 // Palette update, mark all tiles as dirty
@@ -322,6 +347,8 @@ uint8_t getGfxReg8(uint16_t addr)
             }
         case REG_LYC_ADDR:
             return regs.LYC.val;
+        case REG_OAM_ADDR:
+            return regs.OAM.val;
         case REG_BGP_ADDR:
             return regs.BGP.val;
         case REG_OBP0_ADDR:
@@ -450,15 +477,20 @@ public:
                 break;
 
             case FIFO_PUSH_1:
-                // we stay here until the fifo is empty
-                state = (empty())? FIFO_PUSH_2 : FIFO_PUSH_1;
+                if( empty() ) {
+                    // add pixels to the fifo!
+                    fifo.lBits = tileInfo.lBits;
+                    fifo.hBits = tileInfo.hBits;
+                    fifo.depth = 8;
+                    xTile++;
+                    state = FIFO_PUSH_2;
+                } else {
+                    // we stay here until the fifo is empty
+                    state = FIFO_PUSH_1;
+                }
                 break;
             case FIFO_PUSH_2:
-                // add pixels to the fifo!
-                fifo.lBits = tileInfo.lBits;
-                fifo.hBits = tileInfo.hBits;
-                fifo.depth = 8;
-                xTile++;
+                // just a timing delay
                 state = TILEREF_1;
                 break;
         }
@@ -634,6 +666,10 @@ void graphicsInit(void)
     }
     memset(screenData, 0, sizeof(screenData));
     bgFetch.reset(true);
+    oamImage.size = OAM_SIZE;
+    oamImage.contents = oamRam.contents;
+    addRamView(&oamImage, "OAM", 0xFE00);
+    oamDmaOffset = OAM_SIZE;
 }
 
 void graphicsDeinit(void)

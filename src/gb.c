@@ -55,9 +55,9 @@ void gbDeinit(void)
 void cpuCycle(void)
 {
     timerTick();
-    mainClock +=MAIN_CLOCKS_PER_CPU_CYCLE;
+    mainClock += MAIN_CLOCKS_PER_CPU_CYCLE;
     ppuCycles(MAIN_CLOCKS_PER_CPU_CYCLE);
-
+    oamDmaCycle();
 }
 
 void cpuCycles(int cycles)
@@ -147,7 +147,7 @@ IoRegDispatchFuncs ioRegDispatch[0x78] = {
     { getGfxReg8, setGfxReg8 }, // FF43 Gfx SCX
     { getGfxReg8, setGfxReg8 }, // FF44 Gfx LY
     { getGfxReg8, setGfxReg8 }, // FF45 Gfx LYC
-    { NULL, NULL }, // FF46
+    { getGfxReg8, setGfxReg8 }, // FF46 Gfx OAM DMA
     { getGfxReg8, setGfxReg8 }, // FF47 Gfx BGP
     { getGfxReg8, setGfxReg8 }, // FF48 Gfx OBP0
     { getGfxReg8, setGfxReg8 }, // FF49 Gfx OBP1

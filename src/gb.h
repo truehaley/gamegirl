@@ -52,6 +52,7 @@ extern bool bootRomActive;
 #define REG_SCX_ADDR    (0xFF43)
 #define REG_LY_ADDR     (0xFF44)
 #define REG_LYC_ADDR    (0xFF45)
+#define REG_OAM_ADDR    (0xFF46)
 #define REG_BGP_ADDR    (0xFF47)
 #define REG_OBP0_ADDR   (0xFF48)
 #define REG_OBP1_ADDR   (0xFF49)
