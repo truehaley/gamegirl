@@ -226,8 +226,8 @@ class CartridgeMapper {
     public:
         CartridgeMapper(Cartridge *cart)
         : cart(cart),
-          romAddrMask{cart->romSize-1},
-          ramAddrMask{cart->ramSize-1} {};
+          romAddrMask{((uint32_t)(1024 * cart->romSize))-1},
+          ramAddrMask{((uint32_t)(1024 * cart->ramSize))-1} {};
         virtual uint8_t getRom8(uint16_t addr) = 0;
         virtual void setRom8(uint16_t addr, uint8_t val8) = 0;
         virtual uint8_t getRam8(uint16_t addr) = 0;
@@ -277,14 +277,15 @@ class MBC1Mapper : public CartridgeMapper {
         bool advancedBanking = false;
 
         void configMappedAddrs(void) {
-            if(advancedBanking) {
+            if(true == advancedBanking) {
+                lowerRomMappedAddr = ((ramBankReg << 18) & romAddrMask);
+                ramMappedAddr = ((ramBankReg << 12) & ramAddrMask);
+            } else {
                 lowerRomMappedAddr = 0;
                 ramMappedAddr = 0;
-            } else {
-                lowerRomMappedAddr = ((ramBankReg << 18) & romAddrMask);
-                ramMappedAddr = (ramBankReg << 12) & ramAddrMask;
             }
-            upperRomMappedAddr = ( ((ramBankReg << 18) | (romBankReg << 13)) & romAddrMask);
+            uint32_t romBank = MAX(1, romBankReg);
+            upperRomMappedAddr = ( ((ramBankReg << 19) | (romBank << 14)) & romAddrMask);
         }
 
     public:
@@ -295,43 +296,37 @@ class MBC1Mapper : public CartridgeMapper {
                 // ROM is guaranteed to always be at least this size
                 return cart->rom.contents[lowerRomMappedAddr + (addr & 0x3FFF)];
             } else {
-                return cart->rom.contents[upperRomMappedAddr + (addr & 0x7FFF)];
+                return cart->rom.contents[upperRomMappedAddr + (addr & 0x3FFF)];
             }
         }
 
         void setRom8(uint16_t addr, uint8_t val8) {
-            switch( (addr & 0x6000) >> 13 ) {
-                case 0: // 0x0000 - 0x1FFF
-                    // RAM Enable
-                    if( (0x0A == val8) && (cart->ramSize > 0) ) {
-                        RamEnabled = true;
-                    } else {
-                        RamEnabled = false;
-                    }
-                    break;
+            if( (0x0000 <= addr) && (0x1FFF >= addr) ) {
+                // RAM Enable
+                if( (0x0A == val8) && (cart->ramSize > 0) ) {
+                    RamEnabled = true;
+                } else {
+                    RamEnabled = false;
+                }
 
-                case 1: // 0x2000 - 0x3FFF
-                    // ROM Bank
-                    romBankReg = val8 & 0x1F;
-                    configMappedAddrs();
-                    break;
+            } else if( (0x2000 <= addr) && (0x3FFF >= addr) ) {
+                // ROM Bank
+                romBankReg = val8 & 0x1F;
 
-                case 2: // 0x4000 - 0x5FFF
-                    // RAM Bank
-                    ramBankReg = val8 & 0x03;
-                    configMappedAddrs();
-                    break;
+            } else if( (0x4000 <= addr) && (0x5FFF >= addr) ) {
+                // RAM Bank
+                ramBankReg = val8 & 0x03;
 
-                case 3: // 0x6000 - 0x7FFF
-                    // Banking Mode
-                    advancedBanking = ( 0x01 == (val8 &0x01) );
-                    configMappedAddrs();
-                    break;
+            } else if( (0x6000 <= addr) && (0x7FFF >= addr) ) {
+                // Banking Mode
+                advancedBanking = ( 0x01 == (val8 & 0x01) );
+
             }
+            configMappedAddrs();
         }
 
         uint8_t getRam8(uint16_t addr) {
-            if( 0 < cart->ramSize ) {
+            if( (0 < cart->ramSize) && RamEnabled ) {
                 return cart->ram.contents[ramMappedAddr + (addr & 0x1FFF)];
             } else {
                 return 0xFF;
@@ -339,7 +334,7 @@ class MBC1Mapper : public CartridgeMapper {
         }
 
         void setRam8(uint16_t addr, uint8_t val8) {
-            if( 0 < cart->ramSize ) {
+            if( (0 < cart->ramSize) && RamEnabled ) {
                 cart->ram.contents[ramMappedAddr + (addr & 0x1FFF)] = val8;
             }
         }
