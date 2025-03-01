@@ -535,11 +535,13 @@ protected:
     } tileInfo;
 
 public:
-    void reset() {
+    void reset(bool fullReset) {
         state = TILEREF_1;
-        fifo.lBits = 0;
-        fifo.hBits = 0;
-        fifo.depth = 0;
+        if(true == fullReset) {
+            fifo.lBits = 0;
+            fifo.hBits = 0;
+            fifo.depth = 0;
+        }
     }
 
     bool empty(void) {
@@ -689,7 +691,7 @@ void ppuCycles(int cycles)
                             if( xCoordinate + 8 >= scanlineObjects[i].xPos ) {
                                 objInProcess = &scanlineObjects[i];
                                 //bgFetch.reset(false, false);
-                                objFetch.reset();
+                                objFetch.reset(false);
                                 objFetch.cycle(objInProcess);
                                 break;
                             }
@@ -767,7 +769,7 @@ void ppuCycles(int cycles)
                         // advance to HBLANK
                         regs.STAT.ppuMode = MODE_HBLANK;
                         maybeTriggerStatInterrupt(INT_STAT_HBLANK);
-                        objFetch.reset();
+                        objFetch.reset(true);
                     }
                     break;
 
@@ -804,18 +806,24 @@ void ppuCycles(int cycles)
                     break;
 
                 case MODE_VBLANK:
-
+                    if( (153 == regs.LY.val) && (4 < scanlineCounter) ) {
+                        // scanline 153 quirk... LY gets set to 0 after only 4 cycles
+                        regs.LY.val = 0;
+                        checkLYC();
+                    }
                     if( (SCANLINE_CYCLES) <= scanlineCounter ) {
                         totalFrames++;
                         scanlineCounter = 0;
-                        regs.LY.val++;
-                        if( LCD_TOTAL_SCANLINES <= regs.LY.val ) {
+                        // will have been set to 0 above as part of scanline 153 quirk handling
+                        if( 0 == regs.LY.val ) {
                             regs.LY.val = 0;
                             frameCounter = 0;
 
                             regs.STAT.ppuMode = MODE_OAM;
                             maybeTriggerStatInterrupt(INT_STAT_OAM);
                             activeStatFlags &= ~INT_STAT_VBLANK;
+                        } else {
+                            regs.LY.val++;
                         }
                         checkLYC();
                     }
@@ -867,6 +875,7 @@ void graphicsInit(void)
     }
     memset(screenData, 0, sizeof(screenData));
     bgFetch.reset(true, false);
+    objFetch.reset(true);
     oamImage.size = OAM_SIZE;
     oamImage.contents = oamRam.contents;
     addRamView(&oamImage, "OAM", 0xFE00);
