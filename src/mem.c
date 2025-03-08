@@ -21,7 +21,8 @@ struct {
     int highlight_length;
     Vector2 scrollPosition;
     guiDrawMemLine *lineDrawFunction;
-} memView[MAXVIEWS] = {0};
+} memView[MAXVIEWS];
+
 static int numViews = 0;
 
 static char memViewNames[128];

@@ -30,7 +30,6 @@ static struct argp argp_config = { argp_options, argpParser, argp_positional_doc
 struct ArgResult
 {
   char *romFilename;
-  bool foo;
   bool console;
   bool breakpointSet;
   int breakpoint;
@@ -130,17 +129,6 @@ int main(int argc, char **argv)
     guiInit();
 
     gbInit(args.romFilename);
-
-    /*
-    if( argc > 1 ) {
-        //dumpMemory(cartridge.rom.contents, cartridge.rom.size);
-        //disassembleRom(&cartridge.rom);
-        //unloadCartridge(&cartridge);
-    } else {
-        //dumpMemory(bootrom.contents, bootrom.size);
-        //disassembleRom(&bootrom);
-        }*/
-
 
     gui();
 
