@@ -1,7 +1,6 @@
-#include "graphics.h"
 #include "gb.h"
 #include "gui.h"
-#include "mem.h"
+#include "raylib.h"
 
 // Set at the beginning of vblank so the gui will redraw the screen
 bool guiUpdateScreen = false;
@@ -183,11 +182,12 @@ typedef struct __attribute__((packed)) {
     } attributes;
 } OamEntry;
 
-#define OAM_SIZE        (40 * sizeof(OamEntry))
+#define OAM_ENTRIES     (40)
+#define OAM_SIZE        (OAM_ENTRIES * sizeof(OamEntry))
 
 union {
     uint8_t contents[OAM_SIZE];
-    OamEntry entries[40];
+    OamEntry entries[OAM_ENTRIES];
 } oamRam;
 
 static RamImage oamImage;
@@ -313,9 +313,21 @@ void setGfxReg8(uint16_t addr, const uint8_t val8)
             regs.BGP.val = val8;
             return;
         case REG_OBP0_ADDR:
+            if( val8 != regs.BGP.val ) {
+                // Palette update, mark all tiles as dirty
+                for(int i=0; i<384; i++) {
+                    tileTextures[i].dirty = true;
+                }
+            }
             regs.OBP0.val = val8;
             return;
         case REG_OBP1_ADDR:
+            if( val8 != regs.BGP.val ) {
+                // Palette update, mark all tiles as dirty
+                for(int i=0; i<384; i++) {
+                    tileTextures[i].dirty = true;
+                }
+            }
             regs.OBP1.val = val8;
             return;
         case REG_WY_ADDR:
@@ -870,7 +882,7 @@ void graphicsInit(void)
     memset(&tileTextures, 0, sizeof(tileTextures));
     // setup initial blank tile textures
     for(int i=0; i<384; i++) {
-        tileTextures[i].image = GenImageColor(8, 8, paletteColor[0]);
+        tileTextures[i].image = GenImageColor(8*3, 8, BLANK);
         tileTextures[i].tex = LoadTextureFromImage(tileTextures[i].image);
     }
     memset(screenData, 0, sizeof(screenData));
@@ -886,18 +898,22 @@ void graphicsDeinit(void)
 {
 }
 
-static void guiRegenTileTex(int index, Tile *tile, PaletteReg pal)
+static void guiRegenTileTex(int index, Tile *tile)
 {
-    // TODO: consider rendering tile with all three palettes to the same texture
+    // Rendering tile with all three palettes to the same texture
     // Then when drawing the tile, the appropriate portion of the texture can be selected
     //  based on the desired palette in use.
-    ImageClearBackground(&tileTextures[index].image, paletteColor[0]);
+    ImageClearBackground(&tileTextures[index].image, BLANK);
     for( int y = 0; y < 8; y++ ) {
         for( int x = 0; x < 8; x++ ) {
             int pixelPalIdx = (BIT(tile->line[y].hBits, 7-x) << 1) | BIT(tile->line[y].lBits, 7-x);
-            int palColor = (pal.val & (3<<(pixelPalIdx*2))) >> (pixelPalIdx*2);
+            int palColor = PALETTE_COLOR(regs.BGP.val, pixelPalIdx);
+            ImageDrawPixel(&tileTextures[index].image, x, y, paletteColor[palColor]);
             if( 0 != palColor ) {
-                ImageDrawPixel(&tileTextures[index].image, x, y, paletteColor[palColor]);
+                palColor = PALETTE_COLOR(regs.OBP0.val, pixelPalIdx);
+                ImageDrawPixel(&tileTextures[index].image, x+8, y, paletteColor[palColor]);
+                palColor = PALETTE_COLOR(regs.OBP1.val, pixelPalIdx);
+                ImageDrawPixel(&tileTextures[index].image, x+16, y, paletteColor[palColor]);
             }
         }
     }
@@ -910,29 +926,20 @@ static void guiRegenDirtyTiles(void)
 {
     for(int i=0; i<384; i++) {
         if(true == tileTextures[i].dirty) {
-            guiRegenTileTex(i, (Tile *)&vram.tiles[i], regs.BGP);
+            guiRegenTileTex(i, (Tile *)&vram.tiles[i]);
             tileTextures[i].dirty = false;
         }
     }
 }
 
-static void guiDrawTile(Vector2 anchor, int index, Tile *tile, PaletteReg pal, float pixelSize, float pixelPad)
+static void guiDrawTile2(Vector2 anchor, int index, bool xFlip, bool yFlip, uint8_t palette, float scale)
 {
-    DrawTextureEx(tileTextures[index].tex, anchor, 0, pixelSize, WHITE);
-    /*
-    Rectangle pixelRect = { anchor.x, anchor.y, pixelSize, pixelSize };
-    for( int y = 0; y < 8; y++ ) {
-        pixelRect.x = anchor.x;
-        for( int x = 0; x < 8; x++ ) {
-            int pixelPalIdx = (BIT(tile->line[y].hBits, 7-x) << 1) | BIT(tile->line[y].lBits, 7-x);
-            int palColor = (pal.val & (3<<(pixelPalIdx*2))) >> (pixelPalIdx*2);
-            DrawRectangleRec(pixelRect, paletteColor[palColor]);
-            pixelRect.x += pixelSize+pixelPad;
-        }
-        pixelRect.y += pixelSize+pixelPad;
-    }
-    */
-
+    Rectangle source = { (float)8*palette, 0, 8, 8 };
+    if( xFlip ) { source.width = -source.width; }
+    if( yFlip ) { source.height = -source.height; }
+    Rectangle dest = { anchor.x, anchor.y, 8*scale, 8*scale};
+    Vector2 origin = { 0.0f, 0.0f };
+    DrawTexturePro(tileTextures[index].tex, source, dest, origin, 0, WHITE);
 }
 
 static void guiDrawMapFrame(Vector2 anchor, uint16_t x, uint16_t y, Color color)
@@ -987,6 +994,37 @@ static void guiDrawMapFrame(Vector2 anchor, uint16_t x, uint16_t y, Color color)
     }
 }
 
+static void guiDrawObjects(Vector2 anchor)
+{
+    // WxH 256+8 x 256+16
+    DrawRectangle(anchor.x, anchor.y, 256+8, 256+16, WHITE);
+    DrawRectangle(anchor.x+8, anchor.y+16, SCREEN_WIDTH, SCREEN_HEIGHT, paletteColor[regs.BGP.palCol0]);
+    for( int i=0; i < OAM_ENTRIES; i++ ) {
+        OamEntry *object = &oamRam.entries[i];
+
+        Vector2 tileAnchor = { anchor.x + object->xPos, anchor.y + object->yPos };
+        PaletteReg pal = (object->attributes.palette)? regs.OBP0: regs.OBP1;
+        if( 0 == regs.LCDC.objSize ) {
+            guiDrawTile2(tileAnchor, object->tileIndex,
+                        object->attributes.xFlip, object->attributes.yFlip,
+                        1+object->attributes.palette, 1);
+        } else {
+            guiDrawTile2(tileAnchor, (object->tileIndex & 0xFE),
+                        object->attributes.xFlip, object->attributes.yFlip,
+                        1+object->attributes.palette, 1);
+            tileAnchor.y += 8;
+            guiDrawTile2(tileAnchor, (object->tileIndex & 0xFE)+1,
+                        object->attributes.xFlip, object->attributes.yFlip,
+                        1+object->attributes.palette, 1);
+        }
+    }
+    DrawRectangle(anchor.x, anchor.y,                   256+8, 16, ColorAlpha(GRAY,0.3));
+    DrawRectangle(anchor.x, anchor.y+SCREEN_HEIGHT+16,  256+8, 256-SCREEN_HEIGHT, ColorAlpha(GRAY,0.3));
+    DrawRectangle(anchor.x, anchor.y+16,                8, SCREEN_HEIGHT, ColorAlpha(GRAY,0.3));
+    DrawRectangle(anchor.x+SCREEN_WIDTH+8, anchor.y+16, 256-SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(GRAY,0.3));
+
+}
+
 static void guiDrawTileMap(Vector2 anchor, const uint8_t map)
 {
     // Width x Height = 256 x 256 or 288 x 288
@@ -1000,10 +1038,10 @@ static void guiDrawTileMap(Vector2 anchor, const uint8_t map)
             tileRef = vram.tileMap[map].tileRef[y][x];
             if( 1 == regs.LCDC.bgWinTileData ) {
                 tile = (Tile *)&vram.tiles[tileRef];
-                guiDrawTile(tileAnchor, tileRef, tile, regs.BGP, 1, 0);
+                guiDrawTile2(tileAnchor, tileRef, false, false, 0, 1);
             } else {
                 tile = (Tile *)&vram.tiles[ (256+((int8_t)tileRef))*16 ];
-                guiDrawTile(tileAnchor, (256+(int8_t)tileRef), tile, regs.BGP, 1, 0);
+                guiDrawTile2(tileAnchor, (256+(int8_t)tileRef), false, false, 0, 1);
             }
             tileAnchor.x += 8;
         }
@@ -1060,7 +1098,7 @@ static void guiDrawTileData(Vector2 anchor)
         tileAnchor.x += FONTWIDTH*2;
 
         for( int x = 0; x < 16; x++ ) {
-            guiDrawTile(tileAnchor, index, (Tile *)&vram.tiles[index], regs.BGP, 2, 0);
+            guiDrawTile2(tileAnchor, index, false, false, 0, 2);
             index++;
             tileAnchor.x += 2*8+1;
         }
@@ -1078,7 +1116,7 @@ void guiDrawScreen(Vector2 anchor)
     DrawRectangleV(anchor, (Vector2){ SCREEN_WIDTH*3, SCREEN_HEIGHT*3 }, ColorAlpha(screenPaletteColor[0], 0.7));
     if(1 == regs.LCDC.graphicsEnable) {
         //DrawRectangleV(anchor, (Vector2){ 160*3, 144*3 }, screenPaletteColor[0]);
-        Rectangle pixelRect = { anchor.x, anchor.y, 2.4, 2.4 };
+        Rectangle pixelRect = { anchor.x, anchor.y, 2.6, 2.6 };
         for( int y = 0; y < SCREEN_HEIGHT; y++ ) {
             pixelRect.x = anchor.x;
             for( int x = 0; x < SCREEN_WIDTH; x++ ) {
@@ -1105,10 +1143,12 @@ void guiDrawGraphics(void)
     guiRegenDirtyTiles();
     guiDrawTileData(anchor); // (Vector2){850, 50});
     anchor.x += 306 + 10;
-    anchor.y += 16;
+    anchor.y = viewAnchor.y + 16;
     guiDrawTileMap(anchor, 0); // (Vector2){550, 50}, 0);
     anchor.y += 256 + 10;
     guiDrawTileMap(anchor, 1); // (Vector2){550, 350}, 1);
-    anchor.x -= 16;
-    anchor.y += 256 + 10;
+    anchor.x += 256 + 10;
+    anchor.y = viewAnchor.y + 16;
+    guiDrawObjects(anchor);
+    anchor.y += 288 + 10;
 }

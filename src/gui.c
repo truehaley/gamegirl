@@ -66,8 +66,8 @@ void guiInit(void)
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE);
 
     // Create the window and OpenGL context
-    InitWindow(1080, 900, "GameGirl");
-    SetWindowMinSize(1080, 900);
+    InitWindow(1080 + 274, 900, "GameGirl");
+    SetWindowMinSize(1080 + 274, 900);
     SetTargetFPS(60);
 
     // Load a texture from the resources directory
@@ -129,9 +129,6 @@ void gui(void)
                 }
             }
         }
-
-
-
 
         // drawing
         BeginDrawing();
