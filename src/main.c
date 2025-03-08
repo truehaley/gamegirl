@@ -3,7 +3,7 @@
 #include "raylib.h"
 #include <argp.h>
 
-const char *argp_program_version = "gamegirl 0.0.1";
+const char *argp_program_version = "gamegirl 0.1.0";
 //const char *argp_program_bug_address = "<bug-gnu-utils@gnu.org>";
 
 // Program documentation.
