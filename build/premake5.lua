@@ -170,6 +170,7 @@ workspace (workspaceName)
             ["Source Files/*"] = {"../src/**.c", "src/**.cpp"},
         }
         files {"../src/**.c", "../src/**.cpp", "../src/**.h", "../src/**.hpp", "../include/**.h", "../include/**.hpp"}
+        removefiles {"../src/cpu_dis.c"}
 
         includedirs { "../src" }
         includedirs { "../include" }

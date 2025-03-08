@@ -289,7 +289,9 @@ class MBC1Mapper : public CartridgeMapper {
         }
 
     public:
-        MBC1Mapper(Cartridge *cart) : CartridgeMapper(cart) {};
+        MBC1Mapper(Cartridge *cart) : CartridgeMapper(cart) {
+            configMappedAddrs();
+        }
 
         uint8_t getRom8(uint16_t addr) {
             if( addr <= 0x3FFF ) {
@@ -470,7 +472,7 @@ Status loadCartridge(const char * const filename)
             break;
     }
 
-    preprocessRom(rom, CARTRIDGE_ENTRY);
+    //preprocessRom(rom, CARTRIDGE_ENTRY);
     addRomView(&cartridge.rom, "CART", 0x0000);
     cartridgeInserted = true;
 

@@ -74,10 +74,7 @@ typedef struct {
 InstructionDetail instructionHistory[8];
 int historyHead = 0;
 
-
-static uint8_t nextInstruction = 0; // start with NOP at boot
-
-
+static Instruction nextInstruction = {.val = 0};
 
 void resetCpu(void)
 {
@@ -88,7 +85,7 @@ void resetCpu(void)
     interruptsEnabled = false;
     interruptsPendingEnable = false;
     cpuHalted = false;
-    nextInstruction = getMem8(regs.PC++);
+    nextInstruction.val = getMem8(regs.PC++);
 }
 
 void setIntReg8(uint16_t addr, uint8_t val8)
@@ -219,9 +216,9 @@ void guiDrawCpuState(void)
 }
 
 
-static bool checkCond(uint8_t instruction)
+static bool checkCond(const Instruction instruction)
 {
-    switch(INST_COND_EXTRACT(instruction)) {
+    switch(instruction.cond) {
         case 0: // NZ
             return (regs.flags.zero == 0);
         case 1: // Z
@@ -359,14 +356,14 @@ static void __inline push16(uint16_t val16)
 }
 
 
-static bool nop(uint8_t instruction)
+static bool nop(const Instruction instruction)
 {
     // Nothing to see here
     // no flags affected
     return false;
 }
 
-static bool ld_ma16_sp(uint8_t instruction)
+static bool ld_ma16_sp(const Instruction instruction)
 {
     // LD [imm16], SP
     uint16_t addr = readImm16();
@@ -375,13 +372,13 @@ static bool ld_ma16_sp(uint8_t instruction)
     return false;
 }
 
-static bool stop(uint8_t instruction)
+static bool stop(const Instruction instruction)
 {
     // TODO
     return false;
 }
 
-static bool jr_e8(uint8_t instruction)
+static bool jr_e8(const Instruction instruction)
 {
     // JR imm8
     const uint16_t instAddr = regs.PC-1;
@@ -392,7 +389,7 @@ static bool jr_e8(uint8_t instruction)
     return (instAddr == regs.PC);
 }
 
-static bool jr_cc_e8(uint8_t instruction)
+static bool jr_cc_e8(const Instruction instruction)
 {
     // JR cc, imm8
     const uint16_t instAddr = regs.PC-1;
@@ -405,20 +402,18 @@ static bool jr_cc_e8(uint8_t instruction)
     return (instAddr == regs.PC);
 }
 
-static bool ld_r16_i16(uint8_t instruction)
+static bool ld_r16_i16(const Instruction instruction)
 {
     // LD r16, imm16
-    const uint8_t r16   = INST_R16_EXTRACT(instruction);
-    setReg16(r16, readImm16());
+    setReg16(instruction.r16, readImm16());
     // no flags affected
     return false;
 }
 
-static bool add_hl_r16(uint8_t instruction)
+static bool add_hl_r16(const Instruction instruction)
 {
     // ADD HL, r16
-    const uint8_t r16   = INST_R16_EXTRACT(instruction);
-    uint32_t val16 = getReg16(r16);
+    uint32_t val16 = getReg16(instruction.r16);
     uint32_t result = val16 + regs.HL;
     uint16_t halfResult = (val16 & 0x0FFF) + (regs.HL & 0x0FFF);
     regs.HL = (uint16_t)result;
@@ -431,54 +426,49 @@ static bool add_hl_r16(uint8_t instruction)
     return false;
 }
 
-static bool ld_mr16_a(uint8_t instruction)
+static bool ld_mr16_a(const Instruction instruction)
 {
     // LD [r16mem], A
-    const uint8_t r16   = INST_R16_EXTRACT(instruction);
-    writeMem8R16(r16, regs.A);
+    writeMem8R16(instruction.r16, regs.A);
     // no flags affected
     return false;
 }
 
-static bool ld_a_mr16(uint8_t instruction)
+static bool ld_a_mr16(const Instruction instruction)
 {
     // LD A, [r16mem]
-    const uint8_t r16   = INST_R16_EXTRACT(instruction);
-    regs.A = readMem8R16(r16);
+    regs.A = readMem8R16(instruction.r16);
     // no flags affected
     return false;
 }
 
-static bool inc_r16(uint8_t instruction)
+static bool inc_r16(const Instruction instruction)
 {
     // INC r16
-    const uint8_t r16   = INST_R16_EXTRACT(instruction);
-    setReg16(r16, getReg16(r16)+1);
+    setReg16(instruction.r16, getReg16(instruction.r16)+1);
     // Takes an extra cycle because the IDU is used for the increment/decrement
     cpuCycle();
     // no flags affected
     return false;
 }
 
-static bool dec_r16(uint8_t instruction)
+static bool dec_r16(const Instruction instruction)
 {
     // DEC
-    const uint8_t r16   = INST_R16_EXTRACT(instruction);
-    setReg16(r16, getReg16(r16)-1);
+    setReg16(instruction.r16, getReg16(instruction.r16)-1);
     // Takes an extra cycle because the IDU is used for the increment/decrement
     cpuCycle();
     // no flags affected
     return false;
 }
 
-static bool inc_r8(uint8_t instruction)
+static bool inc_r8(const Instruction instruction)
 {
     // INC r8
-    const uint8_t r8_a  = INST_R8_A_EXTRACT(instruction);
-    uint8_t v8 = getReg8(r8_a);
+    uint8_t v8 = getReg8(instruction.r8_dst);
     uint8_t result= v8+1;
     uint8_t halfResult = (v8&0xF)+1;
-    setReg8(r8_a, result);
+    setReg8(instruction.r8_dst, result);
     regs.flags.zero = (0==result)?1:0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = (0x0010&halfResult)>>4;
@@ -486,14 +476,13 @@ static bool inc_r8(uint8_t instruction)
     return false;
 }
 
-static bool dec_r8(uint8_t instruction)
+static bool dec_r8(const Instruction instruction)
 {
     // DEC r8
-    const uint8_t r8_a  = INST_R8_A_EXTRACT(instruction);
-    uint8_t v8 = getReg8(r8_a);
+    uint8_t v8 = getReg8(instruction.r8_dst);
     uint8_t result= v8-1;
     uint8_t halfResult = (v8&0xF)-1;
-    setReg8(r8_a, result);
+    setReg8(instruction.r8_dst, result);
     regs.flags.zero = (0==result)?1:0;
     regs.flags.sub = 1;
     regs.flags.halfCarry = (0x0010&halfResult)>>4;
@@ -501,22 +490,20 @@ static bool dec_r8(uint8_t instruction)
     return false;
 }
 
-static bool ld_r8_i8(uint8_t instruction)
+static bool ld_r8_i8(const Instruction instruction)
 {
     // LD r8, imm8
-    const uint8_t r8_a  = INST_R8_A_EXTRACT(instruction);
-    setReg8(r8_a,readImm8());
+    setReg8(instruction.r8_dst,readImm8());
     // no flags affected
     return false;
 }
 
-static bool rlc_r8(uint8_t instruction)
+static bool rlc_r8(const Instruction instruction)
 {
     // RLC r8
-    const uint8_t r8 = INST_R8_B_EXTRACT(instruction);
-    uint8_t val8 = getReg8(r8);
+    uint8_t val8 = getReg8(instruction.r8_op);
     uint8_t result8 = (val8 << 1) | ((val8 & 0x80) >> 7);
-    setReg8(r8, result8);
+    setReg8(instruction.r8_op, result8);
     regs.flags.zero = (result8 == 0)? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 0;
@@ -524,7 +511,7 @@ static bool rlc_r8(uint8_t instruction)
     return false;
 }
 
-static bool rlc_a(uint8_t instruction)
+static bool rlc_a(const Instruction instruction)
 {
     // RLCA
     // this version of always operates on reg A and leaves zero flag clear
@@ -534,13 +521,12 @@ static bool rlc_a(uint8_t instruction)
     return false;
 }
 
-static bool rl_r8(uint8_t instruction)
+static bool rl_r8(const Instruction instruction)
 {
     // RL r8
-    const uint8_t r8 = INST_R8_B_EXTRACT(instruction);
-    uint8_t val8 = getReg8(r8);
+    uint8_t val8 = getReg8(instruction.r8_op);
     uint8_t result8 = (val8 << 1) | regs.flags.carry;
-    setReg8(r8, result8);
+    setReg8(instruction.r8_op, result8);
     regs.flags.zero = (result8 == 0)? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 0;
@@ -548,7 +534,7 @@ static bool rl_r8(uint8_t instruction)
     return false;
 }
 
-static bool rl_a(uint8_t instruction)
+static bool rl_a(const Instruction instruction)
 {
     // RLA
     // this version of always operates on reg A and leaves zero flag clear
@@ -558,13 +544,12 @@ static bool rl_a(uint8_t instruction)
     return false;
 }
 
-static bool rrc_r8(uint8_t instruction)
+static bool rrc_r8(const Instruction instruction)
 {
     // RRC r8
-    const uint8_t r8    = INST_R8_B_EXTRACT(instruction);
-    uint8_t val8 = getReg8(r8);
+    uint8_t val8 = getReg8(instruction.r8_op);
     uint8_t result8 = ((val8 & 0x01) << 7) | (val8 >> 1);
-    setReg8(r8, result8);
+    setReg8(instruction.r8_op, result8);
     regs.flags.zero = (result8 == 0)? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 0;
@@ -572,7 +557,7 @@ static bool rrc_r8(uint8_t instruction)
     return false;
 }
 
-static bool rrc_a(uint8_t instruction)
+static bool rrc_a(const Instruction instruction)
 {
     // RRCA
     // this version of always operates on reg A and leaves zero flag clear
@@ -582,13 +567,12 @@ static bool rrc_a(uint8_t instruction)
     return false;
 }
 
-static bool rr_r8(uint8_t instruction)
+static bool rr_r8(const Instruction instruction)
 {
     // RR r8
-    const uint8_t r8    = INST_R8_B_EXTRACT(instruction);
-    uint8_t val8 = getReg8(r8);
+    uint8_t val8 = getReg8(instruction.r8_op);
     uint8_t result8 = (regs.flags.carry << 7) | (val8 >> 1);
-    setReg8(r8, result8);
+    setReg8(instruction.r8_op, result8);
     regs.flags.zero = (result8 == 0)? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 0;
@@ -596,7 +580,7 @@ static bool rr_r8(uint8_t instruction)
     return false;
 }
 
-static bool rr_a(uint8_t instruction)
+static bool rr_a(const Instruction instruction)
 {
     // RRA
     // this version of always operates on reg A and leaves zero flag clear
@@ -606,7 +590,7 @@ static bool rr_a(uint8_t instruction)
     return false;
 }
 
-static bool daa(uint8_t instruction)
+static bool daa(const Instruction instruction)
 {
     // DAA
     uint8_t adj;
@@ -631,7 +615,7 @@ static bool daa(uint8_t instruction)
     return false;
 }
 
-static bool cpl(uint8_t instruction)
+static bool cpl(const Instruction instruction)
 {
     // CPL
     // compliment A
@@ -643,7 +627,7 @@ static bool cpl(uint8_t instruction)
     return false;
 }
 
-static bool scf(uint8_t instruction)
+static bool scf(const Instruction instruction)
 {
     // SCF
     // set carry flag
@@ -654,7 +638,7 @@ static bool scf(uint8_t instruction)
     return false;
 }
 
-static bool ccf(uint8_t instruction)
+static bool ccf(const Instruction instruction)
 {
     // CCF
     // compliment carry flag
@@ -717,19 +701,16 @@ static __inline void alu(uint8_t op, uint8_t val8)
     regs.flags.halfCarry = (0x10&halfResult)>>4;
 }
 
-static bool alu_r8(uint8_t instruction)
+static bool alu_r8(const Instruction instruction)
 {
     // ALU A, r8
-    const uint8_t op  = INST_R8_A_EXTRACT(instruction);
-    const uint8_t r8_b  = INST_R8_B_EXTRACT(instruction);
-
-    uint8_t val8 = getReg8(r8_b);
-    alu(op, val8);
+    uint8_t val8 = getReg8(instruction.r8_op);
+    alu(instruction.op, val8);
     // flags adjusted in alu helper
     return false;
 }
 
-static bool halt(uint8_t instruction)
+static bool halt(const Instruction instruction)
 {
     // TODO
     if( 0 == (ifReg.val & ieReg.val) ) {
@@ -739,21 +720,18 @@ static bool halt(uint8_t instruction)
     return false;
 }
 
-static bool ld_r8_r8(uint8_t instruction)
+static bool ld_r8_r8(const Instruction instruction)
 {
-    const uint8_t r8_a  = INST_R8_A_EXTRACT(instruction);
-    const uint8_t r8_b  = INST_R8_B_EXTRACT(instruction);
-    setReg8(r8_a,getReg8(r8_b));
+    setReg8(instruction.r8_dst,getReg8(instruction.r8_src));
     // no flags affected
-    return false; // ((R8_B == r8_a) && (R8_B == r8_b));
+    return false; // ((R8_B == r8_dst) && (R8_B == r8_src));
 }
 
-static bool pop_r16(uint8_t instruction)
+static bool pop_r16(const Instruction instruction)
 {
     // POP r16
-    const uint8_t r16 = INST_R16_EXTRACT(instruction);
     uint16_t val16 = pop16();
-    switch(r16) {
+    switch(instruction.r16) {
         case 0:
             regs.BC = val16;
             break;
@@ -771,11 +749,10 @@ static bool pop_r16(uint8_t instruction)
     return false;
 }
 
-static bool push_r16(uint8_t instruction)
+static bool push_r16(const Instruction instruction)
 {
     // PUSH r16
-    const uint8_t r16 = INST_R16_EXTRACT(instruction);
-    switch(r16) {
+    switch(instruction.r16) {
         case 0:
             push16(regs.BC);
             break;
@@ -793,7 +770,7 @@ static bool push_r16(uint8_t instruction)
     return false;
 }
 
-static bool jp_i16(uint8_t instruction)
+static bool jp_i16(const Instruction instruction)
 {
     // JP imm16
     const uint16_t instAddr = regs.PC-1;
@@ -804,7 +781,7 @@ static bool jp_i16(uint8_t instruction)
     return (instAddr == regs.PC);
 }
 
-static bool jp_cc_i16(uint8_t instruction)
+static bool jp_cc_i16(const Instruction instruction)
 {
     // JP cond, imm16
     const uint16_t instAddr = regs.PC-1;
@@ -817,7 +794,7 @@ static bool jp_cc_i16(uint8_t instruction)
     return (instAddr == regs.PC);
 }
 
-static bool jp_hl(uint8_t instruction)
+static bool jp_hl(const Instruction instruction)
 {
     // JP HL
     const uint16_t instAddr = regs.PC-1;
@@ -826,7 +803,7 @@ static bool jp_hl(uint8_t instruction)
     return (instAddr == regs.PC);
 }
 
-static bool call_i16(uint8_t instruction)
+static bool call_i16(const Instruction instruction)
 {
     // CALL imm16
     const uint16_t instAddr = regs.PC-1;
@@ -837,7 +814,7 @@ static bool call_i16(uint8_t instruction)
     return (instAddr == regs.PC);
 }
 
-static bool call_cc_i16(uint8_t instruction)
+static bool call_cc_i16(const Instruction instruction)
 {
     // CALL cond, imm16
     const uint16_t instAddr = regs.PC-1;
@@ -850,17 +827,17 @@ static bool call_cc_i16(uint8_t instruction)
     return (instAddr == regs.PC);
 }
 
-static bool rst(uint8_t instruction)
+static bool rst(const Instruction instruction)
 {
     // RST vec
     const uint16_t instAddr = regs.PC-1;
     push16(regs.PC);
-    regs.PC = INST_RST_TGT3_EXTRACT(instruction) * 8;
+    regs.PC = instruction.tgt * 8;
     // no flags affected
     return (instAddr == regs.PC);
 }
 
-static bool ret(uint8_t instruction)
+static bool ret(const Instruction instruction)
 {
     // RET
     uint16_t pc = pop16();
@@ -870,7 +847,7 @@ static bool ret(uint8_t instruction)
     return false;
 }
 
-static bool ret_cc(uint8_t instruction)
+static bool ret_cc(const Instruction instruction)
 {
     // RET cond
     cpuCycle(); // takes a cycle to test conditions
@@ -881,7 +858,7 @@ static bool ret_cc(uint8_t instruction)
     return false;
 }
 
-static bool reti(uint8_t instruction)
+static bool reti(const Instruction instruction)
 {
     // RETI
     ret(instruction);
@@ -891,17 +868,16 @@ static bool reti(uint8_t instruction)
     return false;
 }
 
-static bool alu_i8(uint8_t instruction)
+static bool alu_i8(const Instruction instruction)
 {
     // ALU A, imm8
-    const uint8_t op  = INST_R8_A_EXTRACT(instruction);
     uint8_t val8 = readImm8();
-    alu(op, val8);
+    alu(instruction.op, val8);
     // flags adjusted in ALU helper
     return false;
 }
 
-static bool invalid(uint8_t instruction)
+static bool invalid(const Instruction instruction)
 {
     // INVALID INSTRUCTION
     // TODO
@@ -909,7 +885,7 @@ static bool invalid(uint8_t instruction)
     return true;
 }
 
-static bool ldh_mc_a(uint8_t instruction)
+static bool ldh_mc_a(const Instruction instruction)
 {
     // LDH [0xFF00 + C], A
     uint16_t addr = 0xFF00 | regs.C;
@@ -918,7 +894,7 @@ static bool ldh_mc_a(uint8_t instruction)
     return false;
 }
 
-static bool ldh_a_mc(uint8_t instruction)
+static bool ldh_a_mc(const Instruction instruction)
 {
     // LDH A, [0xFF00 + C]
     uint16_t addr = 0xFF00 | regs.C;
@@ -927,7 +903,7 @@ static bool ldh_a_mc(uint8_t instruction)
     return false;
 }
 
-static bool ldh_ma8_a(uint8_t instruction)
+static bool ldh_ma8_a(const Instruction instruction)
 {
     // LDH [0xFF00 + imm8], A
     uint16_t addr = 0xFF00 | readImm8();
@@ -936,7 +912,7 @@ static bool ldh_ma8_a(uint8_t instruction)
     return false;
 }
 
-static bool ldh_a_ma8(uint8_t instruction)
+static bool ldh_a_ma8(const Instruction instruction)
 {
     // LDH A, [0xFF00 + imm8]
     uint16_t addr = 0xFF00 | readImm8();
@@ -945,7 +921,7 @@ static bool ldh_a_ma8(uint8_t instruction)
     return false;
 }
 
-static bool ld_ma16_a(uint8_t instruction)
+static bool ld_ma16_a(const Instruction instruction)
 {
     // LDH [imm16], A
     uint16_t addr = readImm16();
@@ -954,7 +930,7 @@ static bool ld_ma16_a(uint8_t instruction)
     return false;
 }
 
-static bool ld_a_ma16(uint8_t instruction)
+static bool ld_a_ma16(const Instruction instruction)
 {
     // LDH A, [imm16]
     uint16_t addr = readImm16();
@@ -963,7 +939,7 @@ static bool ld_a_ma16(uint8_t instruction)
     return false;
 }
 
-static bool add_sp_e8(uint8_t instruction)
+static bool add_sp_e8(const Instruction instruction)
 {
     // ADD SP, imm8
     int8_t val8 = (int8_t)readImm8();
@@ -979,7 +955,7 @@ static bool add_sp_e8(uint8_t instruction)
     return false;
 }
 
-static bool ld_hl_spe8(uint8_t instruction)
+static bool ld_hl_spe8(const Instruction instruction)
 {
     // LD HL, SP+imm8
     int8_t val8 = (int8_t)readImm8();
@@ -995,7 +971,7 @@ static bool ld_hl_spe8(uint8_t instruction)
     return false;
 }
 
-static bool ld_sp_hl(uint8_t instruction)
+static bool ld_sp_hl(const Instruction instruction)
 {
     // LD SP, HL
     regs.SP = regs.HL;
@@ -1005,7 +981,7 @@ static bool ld_sp_hl(uint8_t instruction)
 }
 
 
-static bool di(uint8_t instruction)
+static bool di(const Instruction instruction)
 {
     // DI
     interruptsEnabled = false;
@@ -1014,7 +990,7 @@ static bool di(uint8_t instruction)
     return false;
 }
 
-static bool ei(uint8_t instruction)
+static bool ei(const Instruction instruction)
 {
     // EI
     interruptsPendingEnable = true;
@@ -1022,13 +998,12 @@ static bool ei(uint8_t instruction)
     return false;
 }
 
-static bool sla_r8(uint8_t instruction)
+static bool sla_r8(const Instruction instruction)
 {
     // SLA r8
-    const uint8_t r8 = INST_R8_B_EXTRACT(instruction);
-    int8_t val8 = (int8_t)getReg8(r8);
+    int8_t val8 = (int8_t)getReg8(instruction.r8_op);
     int8_t result8 = (val8 << 1);
-    setReg8(r8, (uint8_t)result8);
+    setReg8(instruction.r8_op, (uint8_t)result8);
     regs.flags.zero = (result8 == 0)? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 0;
@@ -1036,13 +1011,12 @@ static bool sla_r8(uint8_t instruction)
     return false;
 }
 
-static bool sra_r8(uint8_t instruction)
+static bool sra_r8(const Instruction instruction)
 {
     // SRA r8
-    const uint8_t r8 = INST_R8_B_EXTRACT(instruction);
-    int8_t val8 = (int8_t)getReg8(r8);
+    int8_t val8 = (int8_t)getReg8(instruction.r8_op);
     int8_t result8 = (val8 >> 1);
-    setReg8(r8, (uint8_t)result8);
+    setReg8(instruction.r8_op, (uint8_t)result8);
     regs.flags.zero = (result8 == 0)? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 0;
@@ -1050,13 +1024,12 @@ static bool sra_r8(uint8_t instruction)
     return false;
 }
 
-static bool srl_r8(uint8_t instruction)
+static bool srl_r8(const Instruction instruction)
 {
     // SRL r8
-    const uint8_t r8 = INST_R8_B_EXTRACT(instruction);
-    uint8_t val8 = getReg8(r8);
+    uint8_t val8 = getReg8(instruction.r8_op);
     uint8_t result8 = (val8 >> 1);
-    setReg8(r8, result8);
+    setReg8(instruction.r8_op, result8);
     regs.flags.zero = (result8 == 0)? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 0;
@@ -1064,13 +1037,12 @@ static bool srl_r8(uint8_t instruction)
     return false;
 }
 
-static bool swap_r8(uint8_t instruction)
+static bool swap_r8(const Instruction instruction)
 {
     // SWAP r8
-    const uint8_t r8 = INST_R8_B_EXTRACT(instruction);
-    uint8_t val8 = getReg8(r8);
+    uint8_t val8 = getReg8(instruction.r8_op);
     uint8_t result8 = ((val8 & 0x0f) << 4) | ((val8 & 0xf0) >> 4);
-    setReg8(r8, result8);
+    setReg8(instruction.r8_op, result8);
     regs.flags.zero = (result8 == 0)? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 0;
@@ -1078,49 +1050,42 @@ static bool swap_r8(uint8_t instruction)
     return false;
 }
 
-static bool bit_bit_r8(uint8_t instruction)
+static bool bit_bit_r8(const Instruction instruction)
 {
-    const uint8_t bit   = INST_R8_A_EXTRACT(instruction);
-    const uint8_t r8    = INST_R8_B_EXTRACT(instruction);
-    regs.flags.zero = (0 == (getReg8(r8) & (0x01<<bit))) ? 1 : 0;
+    regs.flags.zero = (0 == (getReg8(instruction.r8_op) & (0x01<<instruction.bit))) ? 1 : 0;
     regs.flags.sub = 0;
     regs.flags.halfCarry = 1;
     // carry flag not affected
     return false;
 }
 
-static bool res_bit_r8(uint8_t instruction)
+static bool res_bit_r8(const Instruction instruction)
 {
-    const uint8_t bit   = INST_R8_A_EXTRACT(instruction);
-    const uint8_t r8    = INST_R8_B_EXTRACT(instruction);
-    setReg8(r8, (getReg8(r8) & ~(0x01<<bit)));
+    setReg8(instruction.r8_op, (getReg8(instruction.r8_op) & ~(0x01<<instruction.bit)));
     // no flags affected
     return false;
 }
 
-static bool set_bit_r8(uint8_t instruction)
+static bool set_bit_r8(const Instruction instruction)
 {
-    const uint8_t bit   = INST_R8_A_EXTRACT(instruction);
-    const uint8_t r8    = INST_R8_B_EXTRACT(instruction);
-    setReg8(r8, (getReg8(r8) | (0x01<<bit)));
+    setReg8(instruction.r8_op, (getReg8(instruction.r8_op) | (0x01<<instruction.bit)));
     // no flags affected
     return false;
 }
 
 
-typedef bool (doOp)(uint8_t instruction);
+typedef bool (doOp)(const Instruction instruction);
 
-static bool prefix(uint8_t instruction)
+static bool prefix(const Instruction instruction)
 {
     static doOp * const prefixBlock0Decode[8] = {
         rlc_r8,         rrc_r8,         rl_r8,          rr_r8,      sla_r8,         sra_r8,     swap_r8,    srl_r8
     };
 
-    const uint8_t pfx_inst = readMem8(regs.PC++);
-    const uint8_t pfx_block = INST_BLOCK_EXTRACT(pfx_inst);
-    switch( pfx_block ) {
+    const Instruction pfx_inst = {.val = readMem8(regs.PC++)};
+    switch( pfx_inst.block ) {
         case 0:
-            return prefixBlock0Decode[INST_R8_A_EXTRACT(pfx_inst)](pfx_inst);
+            return prefixBlock0Decode[pfx_inst.op](pfx_inst);
         case 1:
             return bit_bit_r8(pfx_inst);
         case 2:
@@ -1133,7 +1098,7 @@ static bool prefix(uint8_t instruction)
 
 bool executeInstruction(const uint16_t breakpoint)
 {
-    uint8_t instruction = nextInstruction;
+    Instruction instruction = nextInstruction;
 
     static doOp * const block0decode[64] = {
         nop,            ld_r16_i16,     ld_mr16_a,      inc_r16,    inc_r8,         dec_r8,     ld_r8_i8,   rlc_a,
@@ -1195,7 +1160,7 @@ bool executeInstruction(const uint16_t breakpoint)
                 regs.PC = 0x60;
                 ifReg.joypad = 0;
             }
-            instruction = readMem8(regs.PC++);
+            instruction.val = readMem8(regs.PC++);
 
             interruptsEnabled = false;
             interruptsPendingEnable = false;
@@ -1212,15 +1177,14 @@ bool executeInstruction(const uint16_t breakpoint)
     instructionHistory[historyHead].code[2] = getMem8(regs.PC+1);
     historyHead = (historyHead+1) & 0x7;
 
-    const uint8_t block = INST_BLOCK_EXTRACT(instruction);
     bool hung;
-    switch( block ) {
+    switch( instruction.block ) {
         case INST_BLOCK0:
-            hung = block0decode[(instruction & ~INST_BLOCK_MASK)](instruction);
+            hung = block0decode[instruction.decode](instruction);
             break;
         case INST_BLOCK1:
             // Mostly register to register loads
-            if(INST_HALT == instruction) {
+            if(INST_HALT == instruction.val) {
                 hung = halt(instruction);
             } else {
                 hung = ld_r8_r8(instruction);
@@ -1231,7 +1195,7 @@ bool executeInstruction(const uint16_t breakpoint)
             hung = alu_r8(instruction);
             break;
         case INST_BLOCK3:
-            hung = block3decode[(instruction & ~INST_BLOCK_MASK)](instruction);
+            hung = block3decode[instruction.decode](instruction);
             break;
     }
 
@@ -1247,7 +1211,7 @@ bool executeInstruction(const uint16_t breakpoint)
         }
     }
 
-    nextInstruction = readMem8(regs.PC++);
+    nextInstruction.val = readMem8(regs.PC++);
 
     return (breakpoint == (regs.PC-1)) || hung;
 }

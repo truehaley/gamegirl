@@ -86,8 +86,9 @@ void gui(void)
     while (!WindowShouldClose() && keepRunning)
     {
         // Process keys
-        takeStep = IsKeyPressed(KEY_SPACE);
-        takeBigStep = IsKeyPressed(KEY_TAB);
+        // Only change takeStep if the key is pressed so we don't miss gui button interations
+        takeStep = (IsKeyPressed(KEY_SPACE))? true : takeStep;
+        takeBigStep = (IsKeyPressed(KEY_TAB))? true : takeStep;
         if(IsKeyPressed(KEY_R)) {
             if(IsKeyDown(KEY_LEFT_SHIFT)) {
                 resetCpu();

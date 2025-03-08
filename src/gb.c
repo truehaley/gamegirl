@@ -24,7 +24,7 @@ void gbInit(const char * const cartFilename)
         printf("ERROR\n");
         exit(1);
     }
-    preprocessRom(&bootrom, BOOTROM_ENTRY);
+    //preprocessRom(&bootrom, BOOTROM_ENTRY);
     addRomView(&bootrom, "BOOT", 0x0000);
     printf("SUCCESS\n");
 
