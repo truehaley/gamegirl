@@ -62,7 +62,7 @@ extern bool bootRomActive;
 #define REG_IE_ADDR     (0xFFFF)
 
 // TODO what do missing/unmapped regs return?
-#define MISSING_REG_VAL  (0x00)
+#define MISSING_REG_VAL  (0xFF)
 #define UNMAPPED_REG_VAL (0xFF)
 
 void gbInit(const char * const cartFilename);

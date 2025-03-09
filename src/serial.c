@@ -20,7 +20,7 @@ struct {
 uint8_t getSerialReg8(uint16_t addr)
 {
     if( REG_SB_ADDR == addr ) {
-        return regs.SB.val;
+        return 0; //regs.SB.val;
     } else if (REG_SC_ADDR == addr) {
         if( serialConsole ) {
             return 0xFF;
@@ -46,7 +46,9 @@ void setSerialReg8(uint16_t addr, uint8_t val8)
     }
 }
 
+
 void serialInit(void)
 {
-
+    memset(&regs, 0, sizeof(regs));
+    regs.SC.val = 0x7E;
 }

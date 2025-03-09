@@ -46,17 +46,19 @@ static struct __attribute__((packed)) {
     uint16_t PC;
 } regs;
 
-typedef struct {
-    union {
-        uint8_t val;
-        struct {
-            uint8_t vblank:1;
-            uint8_t stat:1;
-            uint8_t timer:1;
-            uint8_t serial:1;
-            uint8_t joypad:1;
-            uint8_t reserved:3;
-        };
+typedef union {
+    uint8_t val;
+    struct {
+        uint8_t flags:5;
+        uint8_t reserved:3;
+    };
+    struct {
+        uint8_t vblank:1;
+        uint8_t stat:1;
+        uint8_t timer:1;
+        uint8_t serial:1;
+        uint8_t joypad:1;
+        uint8_t :3;
     };
 } InterruptRegister;
 
@@ -102,6 +104,7 @@ uint8_t getIntReg8(uint16_t addr)
     if( REG_IE_ADDR == addr ) {
         return ieReg.val;
     } else if( REG_IF_ADDR == addr ) {
+        ifReg.reserved = 0x7;   // reads as 1s
         return ifReg.val;
     }
     return 0x00;
@@ -109,7 +112,7 @@ uint8_t getIntReg8(uint16_t addr)
 
 void setIntFlag(InterruptFlag interrupt)
 {
-    ifReg.val |= (0x01 << interrupt);
+    ifReg.flags |= (0x01 << interrupt);
     cpuHalted = false;
 }
 
@@ -350,7 +353,7 @@ static uint16_t __inline pop16(void)
 
 static void __inline push16(uint16_t val16)
 {
-    cpuCycles(1); // pre-decrement takes a cycle
+    cpuCycle(); // pre-decrement takes a cycle
     writeMem8(--regs.SP, MSB(val16));
     writeMem8(--regs.SP, LSB(val16));
 }
@@ -713,7 +716,7 @@ static bool alu_r8(const Instruction instruction)
 static bool halt(const Instruction instruction)
 {
     // TODO
-    if( 0 == (ifReg.val & ieReg.val) ) {
+    if( 0 == (ifReg.flags & ieReg.flags) ) {
         // only halt if nothing is pending
         cpuHalted = true;
     }
@@ -1137,12 +1140,12 @@ bool executeInstruction(const uint16_t breakpoint)
     if( interruptsEnabled ) {
         // is anything pending?
         InterruptRegister pending;
-        pending.val = (ieReg.val & ifReg.val);
-        if(0 != pending.val) {
+        pending.flags = (ieReg.flags & ifReg.flags);
+        if(0 != pending.flags) {
             cpuCycle(); // 1 cycle to decrement PC, 1 cycle to pre-decrement SP in push below
             push16(regs.PC-1);  // the SP pre-decrement cycle, then 2 cycles to write out PC
             // recalculate what is pending in case anything of higher priorty fired during the last few cycles
-            pending.val = (ieReg.val & ifReg.val);
+            pending.flags = (ieReg.flags & ifReg.flags);
             // handle in priority order
             if( pending.vblank ) {
                 regs.PC = 0x40;

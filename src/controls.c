@@ -33,8 +33,10 @@ ControlState activeControls;
 uint8_t getControlsReg8(uint16_t addr)
 {
     if( REG_JOYP_ADDR == addr ) {
-        regs.JOYP.readState = 0x0F;
+        regs.JOYP.reserved = 0x3;  // reads as 1s
+
         // clear any action bits if selected
+        regs.JOYP.readState = 0x0F;
         if( 0 == regs.JOYP.poll_action ) {
             regs.JOYP.readState &= ~activeControls.action;
         }
@@ -132,5 +134,5 @@ void guiDrawControls(void)
 
 void controlsInit(void)
 {
-    regs.JOYP.val = 0xFF;
+    regs.JOYP.val = 0xCF;   // reset val
 }

@@ -345,6 +345,7 @@ uint8_t getGfxReg8(uint16_t addr)
         case REG_LCDC_ADDR:
             return regs.LCDC.val;
         case REG_STAT_ADDR:
+            regs.STAT.reserved = 0x1;   // reads as 1s
             return regs.STAT.val;
         case REG_SCY_ADDR:
             return regs.SCY.val;
@@ -892,6 +893,7 @@ void graphicsInit(void)
     oamImage.contents = oamRam.contents;
     addRamView(&oamImage, "OAM", 0xFE00);
     oamDmaOffset = OAM_SIZE;
+    regs.OAM.val = 0xFF;    // reset value
 }
 
 void graphicsDeinit(void)
