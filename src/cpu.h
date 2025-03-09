@@ -112,6 +112,8 @@ void preprocessRom(RomImage * const rom, int offset);
 void disassembleRom(RomImage * const rom);
 int disassembleInstruction(RomImage * const rom, const int offset, char **buffer, int *jumpDest);
 
+bool mooneyeSuccess(void);
+
 #ifdef __cplusplus
 }
 #endif

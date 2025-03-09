@@ -13,10 +13,12 @@ static char argp_positional_doc[] = "romImage";
 // The options we understand.
 static struct argp_option argp_options[] = {
   {"run",       'r', 0,      0,  "Automatically start in running state" },
+  {"fastboot",  'f', 0,      0,  "Fastboot mode doesn't run GUI during bootrom"},
   {"console",   'c', 0,      0,  "Enable serial output to console" },
   {"break",     'b', "ADDR", 0,  "Set Breakpoint at address [ADDR]"},
   {"exitbreak", 'e', 0,      0,  "Exit when breakpoint or hung"},
   {"debugLog",  'd', "FILE", 0,  "Output Gameboy-Doctor compatible log to [FILE]" },
+  {"mooneye",   'm', 0,      0,  "Enable mooneye test suite mode" },
   {"verbose",   'v', 0,      0,  "Enable verbose logging"},
   { 0 }
 };
@@ -35,7 +37,9 @@ struct ArgResult
   int breakpoint;
   bool exitOnBreak;
   bool autoRun;
+  bool fastBoot;
   char *debugLog;
+  bool mooneye;
   bool verbose;
 };
 
@@ -51,6 +55,9 @@ static error_t argpParser(int key, char *arg, struct argp_state *state)
     case 'r':
       args->autoRun = true;
       break;
+    case 'f':
+      args->fastBoot = true;
+      break;
     case 'c':
       args->console = true;
       break;
@@ -63,6 +70,9 @@ static error_t argpParser(int key, char *arg, struct argp_state *state)
       break;
     case 'd':
       args->debugLog = arg;
+      break;
+    case 'm':
+      args->mooneye = true;
       break;
     case 'v':
       args->verbose = true;
@@ -84,6 +94,8 @@ FILE *doctorLogFile = NULL;
 bool serialConsole = false;
 bool exitOnBreak = false;
 bool running = false;
+bool mooneye = false;
+bool fastBoot = false;
 
 int main(int argc, char **argv)
 {
@@ -97,9 +109,8 @@ int main(int argc, char **argv)
         printf("Enabling Gameboy-Doctor log output to '%s'\n", args.debugLog);
         if( NULL == (doctorLogFile = fopen(args.debugLog, "w")) ) {
             printf("Error opening debug log file!\n");
-            exit(0);
+            exit(1);
         }
-
     }
 
     if(true == args.console) {
@@ -110,6 +121,11 @@ int main(int argc, char **argv)
     if(true == args.autoRun) {
         printf("Processor will start in running state\n");
         running = true;
+    }
+
+    if(true == args.fastBoot) {
+        printf("FastBoot mode, no GUI during bootrom\n");
+        fastBoot = true;
     }
 
     if(true == args.exitOnBreak) {
@@ -124,17 +140,31 @@ int main(int argc, char **argv)
         SetTraceLogLevel(LOG_WARNING);
     }
 
+    if(true == args.mooneye) {
+        printf("Running in mooneye test suite mode.  Process will return 42 on success, 66 (0x42) on fail\n");
+        mooneye = true;
+    }
+
     systemBreakpoint = (args.breakpointSet)? args.breakpoint : 0xFFFF;
 
     guiInit();
 
     gbInit(args.romFilename);
 
-    gui();
+    int result = gui();
 
     gbDeinit();
     if(NULL != doctorLogFile) {
         fclose(doctorLogFile);
     }
-    return 0;
+
+    if(mooneye) {
+        if( 42 == result ) {
+            printf("Mooneye test PASSED\n");
+        } else {
+            printf("Mooneye test FAILED\n");
+        }
+    }
+
+    exit(result);
 }

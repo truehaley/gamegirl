@@ -17,7 +17,7 @@ extern Font firaFont;
 extern uint16_t systemBreakpoint;
 
 void guiInit(void);
-void gui(void);
+int gui(void);
 
 
 #ifdef __cplusplus

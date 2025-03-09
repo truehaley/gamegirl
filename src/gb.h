@@ -27,6 +27,8 @@ extern FILE *doctorLogFile;
 extern bool serialConsole;
 extern bool exitOnBreak;
 extern bool running;
+extern bool fastBoot;
+extern bool mooneye;
 extern bool bootRomActive;
 
 #define MAIN_CLOCK_HZ (4194304)

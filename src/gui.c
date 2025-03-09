@@ -1,7 +1,4 @@
-#include "controls.h"
 #include "gb.h"
-#include "graphics.h"
-#include "raylib.h"
 #include "gui.h"
 
 Font firaFont;
@@ -75,7 +72,7 @@ void guiInit(void)
     firaFont = LoadFontEx("resources/Fonts/FiraMono/FiraMonoNerdFont-Regular.otf", FONTSIZE, 0, 250);
 }
 
-void gui(void)
+int gui(void)
 {
 
     int instructionsPerTab = 10000;
@@ -100,8 +97,8 @@ void gui(void)
         ControlState controls;
         controls.buttonA = IsKeyDown(KEY_L);
         controls.buttonB = IsKeyDown(KEY_K);
-        controls.select = IsKeyDown(KEY_V);
-        controls.start = IsKeyDown(KEY_B);
+        controls.select = IsKeyDown(KEY_B);
+        controls.start = IsKeyDown(KEY_N);
         controls.dpadRight = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
         controls.dpadLeft = IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
         controls.dpadUp = IsKeyDown(KEY_UP) || IsKeyDown(KEY_W);
@@ -146,10 +143,13 @@ void gui(void)
     }
 
     // cleanup
-    // unload our texture so it can be cleaned up
-    //UnloadTexture(wabbit);
 
     // destroy the window and cleanup the OpenGL context
     CloseWindow();
 
+    if( mooneye ) {
+        return (mooneyeSuccess())? 42: 0x42;
+    } else {
+        return 0;
+    }
 }

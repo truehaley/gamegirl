@@ -1218,3 +1218,10 @@ bool executeInstruction(const uint16_t breakpoint)
 
     return (breakpoint == (regs.PC-1)) || hung;
 }
+
+// verification test the mooneye test suite uses to indicate a test has passed
+bool mooneyeSuccess(void)
+{
+    // Fibonacci sequence in regs BCDEHL
+    return (3 == regs.B) && (5 == regs.C) && (8 == regs.D) && (13 == regs.E) && (21 == regs.H) && (34 == regs.L);
+}

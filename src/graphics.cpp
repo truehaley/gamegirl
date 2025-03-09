@@ -799,9 +799,11 @@ void ppuCycles(int cycles)
                             setIntFlag(INT_VBLANK);  // always triggered
                             windowLine = 0;
                             if(true == bootRomActive) {
-                                // refresh the gui 10 times less often while the bootrom is running,
-                                //  letting us speed through the boot screen!
-                                guiUpdateScreen = ((totalFrames % 60) == 0);
+                                if( false == fastBoot ) {
+                                    // Even if we're not in fastboot mode, we refresh the gui 10 times less
+                                    //  often while the bootrom is running, letting us speed through the boot screen!
+                                    guiUpdateScreen = ((totalFrames % 60) == 0);
+                                }
                             } else {
                                 guiUpdateScreen = true;
                             }
@@ -898,6 +900,7 @@ void graphicsInit(void)
 
 void graphicsDeinit(void)
 {
+    // TODO: unload textures
 }
 
 static void guiRegenTileTex(int index, Tile *tile)
