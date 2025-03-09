@@ -136,18 +136,18 @@ function run_acceptance_ppu() {
 function run_mbc1() {
     echo "mbc1 tests"
     run_test emulator-only/mbc1/bits_bank1.gb
-    run_test emulator-only/mbc1/bits_bank2.gb       # FIXME
-    run_test emulator-only/mbc1/bits_mode.gb        # FIXME
-    run_test emulator-only/mbc1/bits_ramg.gb        # FIXME
-    run_test emulator-only/mbc1/multicart_rom_8Mb.gb    # FIXME
-    run_test emulator-only/mbc1/ram_256kb.gb        # FIXME
-    run_test emulator-only/mbc1/ram_64kb.gb         # FIXME
-    run_test emulator-only/mbc1/rom_16Mb.gb         # FIXME
+    run_test emulator-only/mbc1/bits_bank2.gb
+    run_test emulator-only/mbc1/bits_mode.gb
+    run_test emulator-only/mbc1/bits_ramg.gb
+    run_test emulator-only/mbc1/multicart_rom_8Mb.gb
+    run_test emulator-only/mbc1/ram_256kb.gb
+    run_test emulator-only/mbc1/ram_64kb.gb
+    run_test emulator-only/mbc1/rom_16Mb.gb
     run_test emulator-only/mbc1/rom_1Mb.gb
     run_test emulator-only/mbc1/rom_2Mb.gb
-    run_test emulator-only/mbc1/rom_4Mb.gb          # FIXME
+    run_test emulator-only/mbc1/rom_4Mb.gb
     run_test emulator-only/mbc1/rom_512kb.gb
-    run_test emulator-only/mbc1/rom_8Mb.gb          # FIXME
+    run_test emulator-only/mbc1/rom_8Mb.gb
 }
 
 function run_mbc2() {

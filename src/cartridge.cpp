@@ -226,8 +226,8 @@ class CartridgeMapper {
     public:
         CartridgeMapper(Cartridge *cart)
         : cart(cart),
-          romAddrMask{((uint32_t)(1024 * cart->romSize))-1},
-          ramAddrMask{((uint32_t)(1024 * cart->ramSize))-1} {};
+          romAddrMask{((uint32_t)(cart->romSize))-1},
+          ramAddrMask{((uint32_t)(cart->ramSize))-1} {};
         virtual uint8_t getRom8(uint16_t addr) = 0;
         virtual void setRom8(uint16_t addr, uint8_t val8) = 0;
         virtual uint8_t getRam8(uint16_t addr) = 0;
@@ -266,9 +266,9 @@ class NoMapper : public CartridgeMapper {
         }
 };
 
-class MBC1Mapper : public CartridgeMapper {
+class Mbc1Mapper : public CartridgeMapper {
     protected:
-        bool RamEnabled = false;
+        bool ramEnabled = false;
         uint8_t romBankReg = 0;
         uint32_t lowerRomMappedAddr = 0;
         uint32_t upperRomMappedAddr = 0;
@@ -276,10 +276,10 @@ class MBC1Mapper : public CartridgeMapper {
         uint32_t ramMappedAddr = 0;
         bool advancedBanking = false;
 
-        void configMappedAddrs(void) {
+        virtual void configMappedAddrs(void) {
             if(true == advancedBanking) {
-                lowerRomMappedAddr = ((ramBankReg << 18) & romAddrMask);
-                ramMappedAddr = ((ramBankReg << 12) & ramAddrMask);
+                lowerRomMappedAddr = ((ramBankReg << 19) & romAddrMask);
+                ramMappedAddr = ((ramBankReg << 13) & ramAddrMask);
             } else {
                 lowerRomMappedAddr = 0;
                 ramMappedAddr = 0;
@@ -289,7 +289,7 @@ class MBC1Mapper : public CartridgeMapper {
         }
 
     public:
-        MBC1Mapper(Cartridge *cart) : CartridgeMapper(cart) {
+        Mbc1Mapper(Cartridge *cart) : CartridgeMapper(cart) {
             configMappedAddrs();
         }
 
@@ -305,10 +305,10 @@ class MBC1Mapper : public CartridgeMapper {
         void setRom8(uint16_t addr, uint8_t val8) {
             if( (0x0000 <= addr) && (0x1FFF >= addr) ) {
                 // RAM Enable
-                if( (0x0A == val8) && (cart->ramSize > 0) ) {
-                    RamEnabled = true;
+                if( (0x0A == (val8 & 0x0F)) && (cart->ramSize > 0) ) {
+                    ramEnabled = true;
                 } else {
-                    RamEnabled = false;
+                    ramEnabled = false;
                 }
 
             } else if( (0x2000 <= addr) && (0x3FFF >= addr) ) {
@@ -328,7 +328,7 @@ class MBC1Mapper : public CartridgeMapper {
         }
 
         uint8_t getRam8(uint16_t addr) {
-            if( (0 < cart->ramSize) && RamEnabled ) {
+            if( (0 < cart->ramSize) && ramEnabled ) {
                 return cart->ram.contents[ramMappedAddr + (addr & 0x1FFF)];
             } else {
                 return 0xFF;
@@ -336,11 +336,44 @@ class MBC1Mapper : public CartridgeMapper {
         }
 
         void setRam8(uint16_t addr, uint8_t val8) {
-            if( (0 < cart->ramSize) && RamEnabled ) {
+            if( (0 < cart->ramSize) && ramEnabled ) {
                 cart->ram.contents[ramMappedAddr + (addr & 0x1FFF)] = val8;
             }
         }
 };
+
+class Mbc1MultiMapper : public Mbc1Mapper {
+    protected:
+        void configMappedAddrs(void) override {
+            if(true == advancedBanking) {
+                lowerRomMappedAddr = ((ramBankReg << 18) & romAddrMask);
+                ramMappedAddr = 0;
+            } else {
+                lowerRomMappedAddr = 0;
+                ramMappedAddr = 0;
+            }
+            uint32_t romBank = MAX(1, romBankReg);
+            upperRomMappedAddr = ( ((ramBankReg << 18) | ((romBank & 0x0F) << 14)) & romAddrMask);
+        }
+
+    public:
+        Mbc1MultiMapper(Cartridge *cart) : Mbc1Mapper(cart) {};
+};
+
+bool isMbc1MultiCart(Cartridge *cart)
+{
+    static const uint8_t nintendoLogo[] = {
+        0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
+        0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
+        0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
+    };
+    // Must not contain any ram and must be at least 512k in size (which would hold 2x 256k carts)
+    if( (0 != cart->ramSize) || ((512*1024) > cart->romSize) ) {
+        return false;
+    }
+    // Check for Nintendo logo in the second multicart
+    return ( 0 == memcmp(&cart->rom.contents[0x40000 + 0x104], nintendoLogo, sizeof(nintendoLogo)) );
+}
 
 
 Cartridge cartridge = {0};
@@ -418,10 +451,10 @@ Status loadCartridge(const char * const filename)
     printf("    rom size...");
     if( CART_ROM_512K >= cart->header->romSize ) {
         printf("%dK (%d banks)\n", (1<<cart->header->romSize)*32, (2<<cart->header->romSize));
-        cart->romSize = (1<<cart->header->romSize)*32;
+        cart->romSize = (1<<cart->header->romSize)*32768;
     } else if( CART_ROM_8M >= cart->header->romSize) {
         printf("%dM (%d banks)\n", (1<<cart->header->romSize), (2<<cart->header->romSize));
-        cart->romSize = (1<<cart->header->romSize)*32;
+        cart->romSize = (1<<cart->header->romSize)*32768;
     } else {
         printf("UNKNOWN\n");
     }
@@ -464,8 +497,13 @@ Status loadCartridge(const char * const filename)
         case 1:
         case 2:
         case 3:
-            printf("MBC1\n");
-            mapper = new MBC1Mapper(cart);
+            if( isMbc1MultiCart(cart) ) {
+                printf("MBC1 Multi\n");
+                mapper = new Mbc1MultiMapper(cart);
+            } else {
+                printf("MBC1\n");
+                mapper = new Mbc1Mapper(cart);
+            }
             break;
         default:
             printf("UNKNOWN (0x%02X)\n",cart->header->cartridgeType);
@@ -512,5 +550,5 @@ uint8_t getCartRam8(uint16_t addr)
 
 void setCartRam8(uint16_t addr, uint8_t val8)
 {
-    mapper->setRom8(addr, val8);
+    mapper->setRam8(addr, val8);
 }

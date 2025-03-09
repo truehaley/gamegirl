@@ -273,7 +273,7 @@ uint8_t getMem8(uint16_t addr)
 
 void setMem8(uint16_t addr, uint8_t val8)
 {
-    if( addr < 0x7FFF ) {
+    if( addr <= 0x7FFF ) {
         // ROM Bank 0-n
         setCartRom8(addr & 0x7FFF, val8);
     } else if( addr >= 0x8000 && addr <= 0x9FFF) {
