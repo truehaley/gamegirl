@@ -1,8 +1,5 @@
-#include "cpu.h"
 #include "gb.h"
 #include "gui.h"
-#include "raylib.h"
-#include <string.h>
 
 static struct __attribute__((packed)) {
     union {
@@ -163,13 +160,11 @@ int guiDisassembleDetail(char * const buffer, InstructionDetail *id)
     return buff - buffer;
 }
 
-void guiDrawCpuState(void)
+Vector2 guiDrawCpuState(const Vector2 viewAnchor)
 {
-    // w x h = ?? x
     // Top left corner of the cpu display
-    Vector2 viewAnchor1 = { 10, 610 };
 
-    Vector2 regAnchor1 = { viewAnchor1.x, viewAnchor1.y };
+    Vector2 regAnchor1 = { viewAnchor.x, viewAnchor.y };
     Vector2 regAnchor2 = { regAnchor1.x + FONTWIDTH*4, regAnchor1.y };
     guiDrawCpuReg8(regAnchor1, regs.A, "A");
     guiDrawCpuReg8(regAnchor2, regs.F, "F");
@@ -199,12 +194,15 @@ void guiDrawCpuState(void)
     int nextPC = regs.PC-1;
     int lines=0;
 
+    // Instruction history
     int historyOffset = (historyHead + 8 - 7) & 0x7;
     do {
         buff = buff + guiDisassembleDetail(buff, &instructionHistory[historyOffset]);
         historyOffset = (historyOffset + 1) & 0x7;
     } while( ++lines < 7 );
     buff = buff + sprintf(buff, "\n");
+
+    // Upcoming instructions
     do {
         InstructionDetail id;
         id.addr = nextPC;
@@ -214,8 +212,13 @@ void guiDrawCpuState(void)
         buff = buff + guiDisassembleDetail(buff, &id);
         nextPC += instructionSize(id.code[0]);
     } while( ++lines < 11 );
-    DrawRectangle(viewAnchor1.x+90, viewAnchor1.y+FONTSIZE*9, 350, FONTSIZE, ColorAlpha(GOLD, 0.3));
-    DrawTextEx(firaFont, buffer, (Vector2){viewAnchor1.x + 95, viewAnchor1.y}, FONTSIZE, 0, BLACK);
+
+    // Background highlight of the next instruction to be run
+    DrawRectangle(viewAnchor.x+90, viewAnchor.y+FONTSIZE*9, 350, FONTSIZE, ColorAlpha(GOLD, 0.3));
+    // Disssassembly view
+    DrawTextEx(firaFont, buffer, (Vector2){viewAnchor.x + 95, viewAnchor.y}, FONTSIZE, 0, BLACK);
+
+    return {90+350, regAnchor1.y-viewAnchor.y};
 }
 
 

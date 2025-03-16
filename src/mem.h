@@ -48,7 +48,7 @@ void memInit(void);
 void addRomView(RomImage *rom, const char * const name, uint16_t addrOffset);
 void addRamView(RamImage *ram, const char * const name, uint16_t addrOffset);
 void setMemViewHighlight(int viewNum, int offset, int length);
-void guiDrawMemView(void);
+Vector2 guiDrawMemView(const Vector2 anchor);
 void dumpMemory(const uint8_t * const src, const int size);
 
 

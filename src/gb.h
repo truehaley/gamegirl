@@ -15,7 +15,7 @@
 #include "cartridge.h"
 #include "serial.h"
 #include "timer.h"
-#include "graphics.h"
+#include "display.h"
 #include "controls.h"
 
 

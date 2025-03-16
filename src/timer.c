@@ -1,4 +1,3 @@
-#include "cpu.h"
 #include "gb.h"
 
 // https://gbdev.io/pandocs/Timer_Obscure_Behaviour.html

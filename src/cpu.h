@@ -100,7 +100,7 @@ void setIntReg8(uint16_t addr, uint8_t val8);
 uint8_t getIntReg8(uint16_t addr);
 void setIntFlag(InterruptFlag interrupt);
 
-void guiDrawCpuState(void);
+Vector2 guiDrawCpuState(const Vector2 viewAnchor);
 void resetCpu(void);
 bool cpuStopped(void);
 bool executeInstruction(const uint16_t breakpoint);

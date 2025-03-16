@@ -32,7 +32,7 @@ typedef struct __attribute__((packed)) {
 uint8_t getControlsReg8(uint16_t addr);
 void setControlsReg8(uint16_t addr, uint8_t val8);
 void updateControls(ControlState newControls);
-void guiDrawControls(void);
+Vector2 guiDrawControls(const Vector2 anchor);
 void controlsInit(void);
 
 

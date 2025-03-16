@@ -83,10 +83,9 @@ void updateControls(ControlState newControls)
     activeControls = newControls;
 }
 
-void guiDrawControls(void)
+Vector2 guiDrawControls(const Vector2 viewAnchor)
 {
     // Top left corner of the controls interface
-    Vector2 viewAnchor = { 10, 144*3 + 20 };
     Vector2 anchor = viewAnchor;
 
     // D-pad horiz
@@ -130,6 +129,8 @@ void guiDrawControls(void)
     if( 1 == activeControls.start ) {
         DrawRectangle(viewAnchor.x + 250 +2, viewAnchor.y + 100 +2, 50-4, 15-4, LIGHTGRAY);
     }
+
+    return (Vector2){ SCREEN_WIDTH*3, 125 };
 }
 
 void controlsInit(void)

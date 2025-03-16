@@ -210,11 +210,8 @@ void addRamView(RamImage *ram, const char * const name, uint16_t addrOffset)
     updateMemViewNames();
 }
 
-void guiDrawMemView(void)
+Vector2 guiDrawMemView(const Vector2 viewAnchor)
 {
-    // Top left corner of the memory viewer
-    const Vector2 viewAnchor = { 550 /* 510 */, 560 };
-
     static int selectedView = 0;
 
     GuiToggleGroup(ANCHOR_RECT(viewAnchor, 0, 0, 50, 20), memViewNames, &selectedView);
@@ -241,6 +238,8 @@ void guiDrawMemView(void)
             memView[selectedView].lineDrawFunction(lineAnchor, selectedView, startLine+viewRow);
         }
     EndScissorMode();
+
+    return (Vector2){480, 16*LINE_HEIGHT+PADDING*2 + 24};
 }
 
 void dumpMemory(const uint8_t * const src, const int size)

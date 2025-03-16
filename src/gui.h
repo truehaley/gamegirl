@@ -10,8 +10,9 @@ extern "C" {
 #endif
 
 #define ANCHOR_RECT(anchor, xloc, yloc, w, h)  ((Rectangle){ anchor.x+(xloc), anchor.y+(yloc), w, h })
-#define FONTSIZE        (16)
+#define FONTSIZE        (16.0f)
 #define FONTWIDTH       (FONTSIZE/2)
+#define GUI_PAD         (10.0f)
 
 extern Font firaFont;
 extern uint16_t systemBreakpoint;

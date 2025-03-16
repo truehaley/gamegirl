@@ -1,11 +1,17 @@
-#ifndef __GRAPHICS_H__
-#define __GRAPHICS_H__
+#ifndef __DISPLAY_H__
+#define __DISPLAY_H__
 
 #include "gb_types.h"
+
+
+#define SCREEN_WIDTH    (160)
+#define SCREEN_HEIGHT   (144)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
 
 #define GBCOL_WHITE     (0)
 #define GBCOL_LIGHTGRAY (1)
@@ -27,13 +33,20 @@ uint8_t getOam8(uint16_t addr);
 
 
 
-void graphicsInit(void);
-void graphicsDeinit(void);
-void guiDrawGraphics(void);
+void displayInit(void);
+void displayDeinit(void);
+
+
+
+Vector2 guiDrawDisplayObjects(const Vector2 anchor);
+Vector2 guiDrawDisplayTileMap(const Vector2 anchor, const uint8_t map);
+Vector2 guiDrawDisplayTileData(const Vector2 anchor);
+Vector2 guiDrawDisplayScreen(const Vector2 anchor);
+Vector2 guiDrawDisplay(const Vector2 anchor);
 
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif //__GRAPHICS_H__
+#endif //__DISPLAY_H__

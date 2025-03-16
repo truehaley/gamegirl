@@ -1,4 +1,5 @@
 #include "gb.h"
+#include "raylib.h"
 #include "gui.h"
 
 Font firaFont;
@@ -8,9 +9,8 @@ bool takeStep = false;
 bool takeBigStep = false;
 int bigStepCount = 0;
 
-void guiDrawEmulatorControls(void)
+Vector2 guiDrawEmulatorControls(const Vector2 viewAnchor)
 {
-    const Vector2 viewAnchor = {10, 845};  //570
     Vector2 anchor = viewAnchor;
 
     // Bounds
@@ -54,7 +54,7 @@ void guiDrawEmulatorControls(void)
     }
     anchor.x += 55;
 
-    DrawFPS(1000, 0);
+    return (Vector2){480, 32};
 }
 
 void guiInit(void)
@@ -128,15 +128,56 @@ int gui(void)
             }
         }
 
+        Vector2 anchor, size;
+        anchor = (Vector2){ GUI_PAD, GUI_PAD };
         // drawing
         BeginDrawing();
             ClearBackground(RAYWHITE);
 
-            guiDrawGraphics();
-            guiDrawControls();
-            guiDrawCpuState();
-            guiDrawMemView();
-            guiDrawEmulatorControls();
+
+            ////////////
+            // Down the left side
+
+            // Main Display
+            Vector2 screenSize = size = guiDrawDisplayScreen(anchor);
+
+            // Controls
+            anchor.y += size.y + GUI_PAD;
+            size = guiDrawControls(anchor);
+
+            // CPU State
+            anchor.y += size.y + GUI_PAD*2;
+            size = guiDrawCpuState(anchor);
+
+            // Emulator controls
+            anchor.y += size.y + GUI_PAD;
+            size = guiDrawEmulatorControls(anchor);
+
+            ///////////
+            // Down adjacent to the screen
+
+            anchor = (Vector2){ anchor.x + screenSize.x + GUI_PAD, GUI_PAD };
+            DrawFPS(anchor.x, anchor.y- (GUI_PAD/2));
+
+            // Tile Data
+            anchor.y += 16;
+            Vector2 tileMapSize = size = guiDrawDisplayTileMap(anchor, 0);
+            size = guiDrawDisplayTileMap((Vector2){anchor.x + size.x + GUI_PAD, anchor.y}, 1);
+
+            // Memory view
+            anchor.y += size.y + GUI_PAD;
+            size = guiDrawMemView(anchor);
+
+            ///////////
+            // Right side of the window
+
+            // Tile Maps
+            anchor = (Vector2){ anchor.x + 2*(tileMapSize.x + GUI_PAD), GUI_PAD };
+            Vector2 tileDataSize = size = guiDrawDisplayTileData(anchor);
+
+            // OAM Objects
+            anchor.y += size.y + GUI_PAD;
+            size = guiDrawDisplayObjects((Vector2){anchor.x + FONTWIDTH*2, anchor.y});
 
         // end the frame and get ready for the next one  (display frame, poll input, etc...)
         EndDrawing();
@@ -148,7 +189,7 @@ int gui(void)
     CloseWindow();
 
     if( mooneye ) {
-        return (mooneyeSuccess())? 42: 0x42;
+        return (mooneyeSuccess())? 42: 0x42;  // 42 success 66 fail
     } else {
         return 0;
     }

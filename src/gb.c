@@ -36,7 +36,7 @@ void gbInit(const char * const cartFilename)
     controlsInit();
     serialInit();
     timerInit();
-    graphicsInit();
+    displayInit();
 
     allocateRam(&wram, 8192);
     addRamView(&wram, "WRAM", 0xC000);
@@ -49,7 +49,7 @@ void gbDeinit(void)
     unloadRom(&bootrom);
     unloadCartridge();
     deallocateRam(&wram);
-    graphicsDeinit();
+    displayDeinit();
 }
 
 void cpuCycle(void)

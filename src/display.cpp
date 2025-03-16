@@ -1,6 +1,5 @@
 #include "gb.h"
 #include "gui.h"
-#include "raylib.h"
 
 // Set at the beginning of vblank so the gui will redraw the screen
 bool guiUpdateScreen = false;
@@ -108,14 +107,11 @@ struct {
                 uint8_t bgWinTileData:1;    // 0 = 8800–97FF (signed); 1 = 8000–8FFF (unsigned)
                 uint8_t windowEnable:1;     // 0 = Off; 1 = On
                 uint8_t windowTileMap:1;    // 0 = 9800–9BFF; 1 = 9C00–9FFF
-                uint8_t graphicsEnable:1;   // 0 = Off; 1 = On
+                uint8_t displayEnable:1;   // 0 = Off; 1 = On
             };
         };
     } LCDC;  // FF40
 } regs;
-
-#define SCREEN_WIDTH    (160)
-#define SCREEN_HEIGHT   (144)
 
 int screenData[SCREEN_HEIGHT][SCREEN_WIDTH];
 
@@ -261,7 +257,7 @@ void setGfxReg8(uint16_t addr, const uint8_t val8)
     switch( addr ) {
         case REG_LCDC_ADDR:
             regs.LCDC.val = val8;
-            if(0 == regs.LCDC.graphicsEnable) {
+            if(0 == regs.LCDC.displayEnable) {
                 // reset the PPU state
                 // initialize framecounter to a value that accounts for where we were in the frame
                 //  when the lcd was turned off.
@@ -654,7 +650,7 @@ void ppuCycles(int cycles)
     static OamEntry *objInProcess = nullptr;
 
     while(cycles--) {
-        if(0 == regs.LCDC.graphicsEnable) {
+        if(0 == regs.LCDC.displayEnable) {
             // When the LCD is disabled, we still make use a frame counter to make sure that the
             //  emulator UI is refreshed at roughly the same 60Hz rate.
             // frameCounter is intialized when the LCD is disabled to account for any time already
@@ -665,7 +661,7 @@ void ppuCycles(int cycles)
                 frameCounter = 0;
             }
 
-        } else { // if(1 == regs.LCDC.graphicsEnable) {
+        } else { // if(1 == regs.LCDC.displayEnable) {
             scanlineCounter++;
 
             switch( regs.STAT.ppuMode ) {
@@ -870,7 +866,7 @@ static const Color screenPaletteColor[4] = {
     (Color){ 8,   41,  85,  255 }
 };
 
-void graphicsInit(void)
+void displayInit(void)
 {
     memset(&regs, 0, sizeof(regs));
     frameCounter = 0;
@@ -898,7 +894,7 @@ void graphicsInit(void)
     regs.OAM.val = 0xFF;    // reset value
 }
 
-void graphicsDeinit(void)
+void displayDeinit(void)
 {
     // TODO: unload textures
 }
@@ -937,7 +933,7 @@ static void guiRegenDirtyTiles(void)
     }
 }
 
-static void guiDrawTile2(Vector2 anchor, int index, bool xFlip, bool yFlip, uint8_t palette, float scale)
+static void guiDrawTile2(const Vector2 anchor, int index, bool xFlip, bool yFlip, uint8_t palette, float scale)
 {
     Rectangle source = { (float)8*palette, 0, 8, 8 };
     if( xFlip ) { source.width = -source.width; }
@@ -947,7 +943,7 @@ static void guiDrawTile2(Vector2 anchor, int index, bool xFlip, bool yFlip, uint
     DrawTexturePro(tileTextures[index].tex, source, dest, origin, 0, WHITE);
 }
 
-static void guiDrawMapFrame(Vector2 anchor, uint16_t x, uint16_t y, Color color)
+static void guiDrawMapFrame(const Vector2 anchor, uint16_t x, uint16_t y, Color color)
 {
     float left, right, top, bottom;
     //bottom := (SCY + 143) % 256 and right := (SCX + 159) % 256
@@ -999,7 +995,7 @@ static void guiDrawMapFrame(Vector2 anchor, uint16_t x, uint16_t y, Color color)
     }
 }
 
-static void guiDrawObjects(Vector2 anchor)
+Vector2 guiDrawDisplayObjects(const Vector2 anchor)
 {
     // WxH 256+8 x 256+16
     DrawRectangle(anchor.x, anchor.y, 256+8, 256+16, WHITE);
@@ -1028,9 +1024,10 @@ static void guiDrawObjects(Vector2 anchor)
     DrawRectangle(anchor.x, anchor.y+16,                8, SCREEN_HEIGHT, ColorAlpha(GRAY,0.3));
     DrawRectangle(anchor.x+SCREEN_WIDTH+8, anchor.y+16, 256-SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(GRAY,0.3));
 
+    return (Vector2){256+8, 256+16};
 }
 
-static void guiDrawTileMap(Vector2 anchor, const uint8_t map)
+Vector2 guiDrawDisplayTileMap(const Vector2 anchor, const uint8_t map)
 {
     // Width x Height = 256 x 256 or 288 x 288
     Vector2 tileAnchor = anchor;
@@ -1070,27 +1067,34 @@ static void guiDrawTileMap(Vector2 anchor, const uint8_t map)
             }
         }
     }
+    return (Vector2){tileAnchor.x-anchor.x, tileAnchor.y-anchor.y};
 }
 
-static void guiDrawTileData(Vector2 anchor)
+Vector2 guiDrawDisplayTileData(const Vector2 anchor)
 {
     // Width x Height = 18*17 x 25*17 = 306 x 425
 
     uint16_t index = 0;
     Vector2 tileAnchor = anchor;
 
+    guiRegenDirtyTiles();
+
     const Color lineColor = GetColor(GuiGetStyle(DEFAULT,LINE_COLOR));
 
+    // Draw offsets across the top
     tileAnchor.x += 4 + FONTWIDTH*2;
     for( int x = 0; x < 16; x++ ) {
         DrawTextEx(firaFont, TextFormat("%X",x), tileAnchor, FONTSIZE, 0, lineColor);
         tileAnchor.x += 2*8+1;
     }
+
+    // Draw Tile Map itself
     tileAnchor = (Vector2){ anchor.x, anchor.y + FONTSIZE };
     for( int y = 0; y < 24; y++ ) {
         tileAnchor.x = anchor.x;
 
         // Draw indexes for selected BG/Win tile data
+        // The s
         if( y < 8 ) {
             if (1 == regs.LCDC.bgWinTileData) {
                 DrawTextEx(firaFont, TextFormat("%X0",y), tileAnchor, FONTSIZE, 0, lineColor);
@@ -1114,12 +1118,13 @@ static void guiDrawTileData(Vector2 anchor)
         }
         tileAnchor.y += 2*8+1;
     }
+    return (Vector2){(tileAnchor.x+FONTWIDTH*2)-anchor.x, tileAnchor.y-anchor.y};
 }
 
-void guiDrawScreen(Vector2 anchor)
+Vector2 guiDrawDisplayScreen(const Vector2 anchor)
 {
     DrawRectangleV(anchor, (Vector2){ SCREEN_WIDTH*3, SCREEN_HEIGHT*3 }, ColorAlpha(screenPaletteColor[0], 0.7));
-    if(1 == regs.LCDC.graphicsEnable) {
+    if(1 == regs.LCDC.displayEnable) {
         //DrawRectangleV(anchor, (Vector2){ 160*3, 144*3 }, screenPaletteColor[0]);
         Rectangle pixelRect = { anchor.x, anchor.y, 2.6, 2.6 };
         for( int y = 0; y < SCREEN_HEIGHT; y++ ) {
@@ -1133,27 +1138,32 @@ void guiDrawScreen(Vector2 anchor)
         }
     }
     guiUpdateScreen = false;
+
+    return (Vector2){SCREEN_WIDTH*3, SCREEN_HEIGHT*3};
 }
 
 
-void guiDrawGraphics(void)
+Vector2 guiDrawDisplay(const Vector2 viewAnchor)
 {
-    // Top left corner of the graphics interface
-    Vector2 viewAnchor = { 10, 10 };
     Vector2 anchor = viewAnchor;
-    // Main Display
-    guiDrawScreen(viewAnchor);
-    anchor.x += 160*3 + 10;
 
-    guiRegenDirtyTiles();
-    guiDrawTileData(anchor); // (Vector2){850, 50});
-    anchor.x += 306 + 10;
+    // Main Display
+    Vector2 size = guiDrawDisplayScreen(viewAnchor);
+    anchor.x += size.x + GUI_PAD;
+
+    size = guiDrawDisplayTileData(anchor); // (Vector2){850, 50});
+    anchor.x += size.x + GUI_PAD;
+    anchor.y = viewAnchor.y + FONTSIZE;
+
+    size = guiDrawDisplayTileMap(anchor, 0); // (Vector2){550, 50}, 0);
+    anchor.y += size.y + GUI_PAD;
+
+    size = guiDrawDisplayTileMap(anchor, 1); // (Vector2){550, 350}, 1);
+    anchor.x += size.x + GUI_PAD;
     anchor.y = viewAnchor.y + 16;
-    guiDrawTileMap(anchor, 0); // (Vector2){550, 50}, 0);
-    anchor.y += 256 + 10;
-    guiDrawTileMap(anchor, 1); // (Vector2){550, 350}, 1);
-    anchor.x += 256 + 10;
-    anchor.y = viewAnchor.y + 16;
-    guiDrawObjects(anchor);
-    anchor.y += 288 + 10;
+
+    size = guiDrawDisplayObjects(anchor);
+    anchor.y += size.y + GUI_PAD;
+
+    return (Vector2){0,0};
 }
