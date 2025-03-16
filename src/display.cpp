@@ -910,7 +910,7 @@ static void guiRegenTileTex(int index, Tile *tile)
             int pixelPalIdx = (BIT(tile->line[y].hBits, 7-x) << 1) | BIT(tile->line[y].lBits, 7-x);
             int palColor = PALETTE_COLOR(regs.BGP.val, pixelPalIdx);
             ImageDrawPixel(&tileTextures[index].image, x, y, paletteColor[palColor]);
-            if( 0 != palColor ) {
+            if( 0 != pixelPalIdx ) {
                 palColor = PALETTE_COLOR(regs.OBP0.val, pixelPalIdx);
                 ImageDrawPixel(&tileTextures[index].image, x+8, y, paletteColor[palColor]);
                 palColor = PALETTE_COLOR(regs.OBP1.val, pixelPalIdx);
@@ -1070,6 +1070,65 @@ Vector2 guiDrawDisplayTileMap(const Vector2 anchor, const uint8_t map)
     return (Vector2){tileAnchor.x-anchor.x, tileAnchor.y-anchor.y};
 }
 
+static Vector2 guiDrawPalette(const Vector2 anchor, const PaletteReg palette, const char *name, bool *active)
+{
+    Rectangle bounds = (Rectangle){anchor.x, anchor.y+8, 16*5, 24};
+    Vector2 mousePoint = GetMousePosition();
+    int fillStyle;
+    bool fillSelector;
+
+    // Check toggle button state
+    if (CheckCollisionPointRec(mousePoint, bounds))
+    {
+        fillSelector = true;
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+            fillStyle = GuiGetStyle(TOGGLE, BASE_COLOR_PRESSED);
+        } else if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+            fillStyle = GuiGetStyle(TOGGLE, BASE_COLOR_NORMAL);
+            *active = !(*active);
+        } else {
+            fillStyle = GuiGetStyle(TOGGLE, BASE_COLOR_FOCUSED);
+        }
+    } else {
+        fillSelector = *active;
+        fillStyle = GuiGetStyle(TOGGLE, BASE_COLOR_PRESSED);
+    }
+
+    if(fillSelector) {
+        DrawRectangle(anchor.x, anchor.y+8, 16*5, 24, GetColor(fillStyle));
+    }
+    GuiGroupBox(bounds, name);
+    for( int palIdx = 0; palIdx < 4; palIdx++ ) {
+        int palColor = PALETTE_COLOR(palette.val, palIdx);
+        DrawRectangle(anchor.x+8+16*(3-palIdx), anchor.y+12, 16, 16, paletteColor[palColor]);
+    }
+    return (Vector2){16*5,16*2};
+}
+
+static Vector2 guiDrawPaletteSelector(const Vector2 viewAnchor, int *selected)
+{
+    Vector2 anchor = viewAnchor;
+    bool active = false;
+
+    active = (0 == *selected);
+    Vector2 size = guiDrawPalette(anchor, regs.BGP, "BGP", &active);
+    *selected = (active)? 0 : *selected;
+
+    active = (1 == *selected);
+    anchor.x += size.x + GUI_PAD;
+    size = guiDrawPalette(anchor, regs.OBP0, "OBP0", &active);
+    *selected = (active)? 1 : *selected;
+
+    active = (2 == *selected);
+    anchor.x += size.x + GUI_PAD;
+    size = guiDrawPalette(anchor, regs.OBP1, "OPB1", &active);
+    *selected = (active)? 2 : *selected;
+
+    anchor.x += size.x;
+
+    return (Vector2){anchor.x - viewAnchor.x, size.y};
+}
+
 Vector2 guiDrawDisplayTileData(const Vector2 anchor)
 {
     // Width x Height = 18*17 x 25*17 = 306 x 425
@@ -1080,6 +1139,9 @@ Vector2 guiDrawDisplayTileData(const Vector2 anchor)
     guiRegenDirtyTiles();
 
     const Color lineColor = GetColor(GuiGetStyle(DEFAULT,LINE_COLOR));
+
+    static int selectedPalette = 0;
+    guiDrawPaletteSelector((Vector2){anchor.x+FONTWIDTH*3, anchor.y+FONTSIZE+24*(2*8+1)}, &selectedPalette);
 
     // Draw offsets across the top
     tileAnchor.x += 4 + FONTWIDTH*2;
@@ -1107,7 +1169,10 @@ Vector2 guiDrawDisplayTileData(const Vector2 anchor)
         tileAnchor.x += FONTWIDTH*2;
 
         for( int x = 0; x < 16; x++ ) {
-            guiDrawTile2(tileAnchor, index, false, false, 0, 2);
+            if(0 != selectedPalette) {
+                DrawRectangleV(tileAnchor, (Vector2){2*8,2*8}, paletteColor[regs.BGP.palCol0]);
+            }
+            guiDrawTile2(tileAnchor, index, false, false, selectedPalette, 2);
             index++;
             tileAnchor.x += 2*8+1;
         }
@@ -1118,7 +1183,7 @@ Vector2 guiDrawDisplayTileData(const Vector2 anchor)
         }
         tileAnchor.y += 2*8+1;
     }
-    return (Vector2){(tileAnchor.x+FONTWIDTH*2)-anchor.x, tileAnchor.y-anchor.y};
+    return (Vector2){(tileAnchor.x+FONTWIDTH*2)-anchor.x, tileAnchor.y-anchor.y+32};
 }
 
 Vector2 guiDrawDisplayScreen(const Vector2 anchor)

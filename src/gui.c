@@ -85,7 +85,7 @@ int gui(void)
         // Process keys
         // Only change takeStep if the key is pressed so we don't miss gui button interations
         takeStep = (IsKeyPressed(KEY_SPACE))? true : takeStep;
-        takeBigStep = (IsKeyPressed(KEY_TAB))? true : takeStep;
+        takeBigStep = (IsKeyPressed(KEY_TAB))? true : takeBigStep;
         if(IsKeyPressed(KEY_R)) {
             if(IsKeyDown(KEY_LEFT_SHIFT)) {
                 resetCpu();
@@ -159,7 +159,7 @@ int gui(void)
             anchor = (Vector2){ anchor.x + screenSize.x + GUI_PAD, GUI_PAD };
             DrawFPS(anchor.x, anchor.y- (GUI_PAD/2));
 
-            // Tile Data
+            // Tile Maps
             anchor.y += 16;
             Vector2 tileMapSize = size = guiDrawDisplayTileMap(anchor, 0);
             size = guiDrawDisplayTileMap((Vector2){anchor.x + size.x + GUI_PAD, anchor.y}, 1);
@@ -171,13 +171,13 @@ int gui(void)
             ///////////
             // Right side of the window
 
-            // Tile Maps
-            anchor = (Vector2){ anchor.x + 2*(tileMapSize.x + GUI_PAD), GUI_PAD };
-            Vector2 tileDataSize = size = guiDrawDisplayTileData(anchor);
-
             // OAM Objects
-            anchor.y += size.y + GUI_PAD;
+            anchor = (Vector2){ anchor.x + 2*(tileMapSize.x + GUI_PAD), GUI_PAD };
             size = guiDrawDisplayObjects((Vector2){anchor.x + FONTWIDTH*2, anchor.y});
+
+            // Tile Data
+            anchor.y += size.y + GUI_PAD;
+            Vector2 tileDataSize = size = guiDrawDisplayTileData(anchor);
 
         // end the frame and get ready for the next one  (display frame, poll input, etc...)
         EndDrawing();
