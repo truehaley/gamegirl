@@ -27,6 +27,27 @@ typedef struct {
     uint8_t *contents;
 } RamImage;
 
+typedef struct {
+    const int count;
+    struct {
+        const char *label;
+        const int width;
+    } list[8];  // list in msb to lsb order
+} RegViewFields;
+
+typedef struct {
+    const uint8_t * const value;
+    const char *name;
+    const char *offset;
+    RegViewFields fields;
+} RegView;
+
+typedef struct {
+    int regCount;
+    Vector2 (* guiDrawCustomRegLine)(const Vector2 viewAnchor, int index);
+    RegView regs[];
+} RegViewList;
+
 
 #ifdef __cplusplus
 }

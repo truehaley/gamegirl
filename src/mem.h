@@ -47,8 +47,13 @@ void memInit(void);
 
 void addRomView(RomImage *rom, const char * const name, uint16_t addrOffset);
 void addRamView(RamImage *ram, const char * const name, uint16_t addrOffset);
+void addRegView(const RegViewList *view, const char * const name);
+
 void setMemViewHighlight(int viewNum, int offset, int length);
 Vector2 guiDrawMemView(const Vector2 anchor);
+Vector2 guiDrawRegView(const Vector2 viewAnchor);
+Vector2 guiDrawMemRegViews(const Vector2 viewAnchor);
+
 void dumpMemory(const uint8_t * const src, const int size);
 
 
@@ -57,6 +62,10 @@ void deallocateRam(RamImage * const ram);
 
 Status loadRom(RomImage * const rom, const char * const filename, int entrypoint);
 void unloadRom(RomImage * const rom);
+
+Vector2 guiDrawRegField(const Vector2 anchor, float minCharWidth, const char *label, const char *content);
+Vector2 guiDrawHexReg(const Vector2 viewAnchor, const RegViewFields regView, int value);
+Vector2 guiDrawHexRegLine(const Vector2 viewAnchor, RegView regv);
 
 
 #ifdef __cplusplus

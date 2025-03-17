@@ -166,7 +166,7 @@ int gui(void)
 
             // Memory view
             anchor.y += size.y + GUI_PAD;
-            size = guiDrawMemView(anchor);
+            size = guiDrawMemRegViews(anchor);
 
             ///////////
             // Right side of the window

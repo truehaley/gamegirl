@@ -63,7 +63,7 @@ struct {
 
     struct {
         uint8_t val;
-    } OAM;
+    } OAM;  // FF46
 
     struct {
         uint8_t val;
@@ -866,39 +866,6 @@ static const Color screenPaletteColor[4] = {
     (Color){ 8,   41,  85,  255 }
 };
 
-void displayInit(void)
-{
-    memset(&regs, 0, sizeof(regs));
-    frameCounter = 0;
-    scanlineCounter = 0;
-    totalFrames = 0;
-    activeStatFlags = 0;
-    memset(&vram, 0, sizeof(vram));
-    vramImage.size = 0x2000;
-    vramImage.contents = vram.contents;
-    addRamView(&vramImage, "VRAM", 0x8000);
-    guiUpdateScreen = false;
-    memset(&tileTextures, 0, sizeof(tileTextures));
-    // setup initial blank tile textures
-    for(int i=0; i<384; i++) {
-        tileTextures[i].image = GenImageColor(8*3, 8, BLANK);
-        tileTextures[i].tex = LoadTextureFromImage(tileTextures[i].image);
-    }
-    memset(screenData, 0, sizeof(screenData));
-    bgFetch.reset(true, false);
-    objFetch.reset(true);
-    oamImage.size = OAM_SIZE;
-    oamImage.contents = oamRam.contents;
-    addRamView(&oamImage, "OAM", 0xFE00);
-    oamDmaOffset = OAM_SIZE;
-    regs.OAM.val = 0xFF;    // reset value
-}
-
-void displayDeinit(void)
-{
-    // TODO: unload textures
-}
-
 static void guiRegenTileTex(int index, Tile *tile)
 {
     // Rendering tile with all three palettes to the same texture
@@ -1025,6 +992,55 @@ Vector2 guiDrawDisplayObjects(const Vector2 anchor)
     DrawRectangle(anchor.x+SCREEN_WIDTH+8, anchor.y+16, 256-SCREEN_WIDTH, SCREEN_HEIGHT, ColorAlpha(GRAY,0.3));
 
     return (Vector2){256+8, 256+16};
+}
+
+
+Vector2 guiDrawOamEntry(const Vector2 viewAnchor, int index)
+{
+    OamEntry entry = oamRam.entries[index];
+    Vector2 anchor = viewAnchor;
+
+    anchor.x += 1;
+    anchor.y += FONTSIZE*0.7f;
+    DrawTextEx(firaFont, TextFormat("%02X", index), anchor, FONTSIZE, 0, BLACK);
+
+    anchor.x += FONTWIDTH*3;
+    anchor.y = viewAnchor.y;
+    Vector2 size = guiDrawRegField(anchor, 2, "X", TextFormat("%02X", entry.xPos));
+
+    anchor.x += size.x+FONTWIDTH;
+    size = guiDrawRegField(anchor, 2, "Y", TextFormat("%02X", entry.yPos));
+
+    anchor.x += size.x+FONTWIDTH;
+    size = guiDrawRegField(anchor, 2, "TILE", TextFormat("%02X", entry.tileIndex));
+
+    anchor.x += size.x+FONTWIDTH;
+    if( 0 == regs.LCDC.objSize ) {
+        anchor.y = viewAnchor.y+6;
+        DrawRectangleV(anchor, (Vector2){2*8,2*8}, paletteColor[regs.BGP.palCol0]);
+        guiDrawTile2(anchor, entry.tileIndex,
+                    entry.attributes.xFlip, entry.attributes.yFlip,
+                    1+entry.attributes.palette, 2);
+        anchor.x += 16+FONTWIDTH;
+    } else {
+        anchor.x += 4;
+        anchor.y = viewAnchor.y+6;
+        DrawRectangleV(anchor, (Vector2){8,2*8}, paletteColor[regs.BGP.palCol0]);
+        guiDrawTile2(anchor, (entry.tileIndex & 0xFE),
+                    entry.attributes.xFlip, entry.attributes.yFlip,
+                    1+entry.attributes.palette, 1);
+        anchor.y += 8;
+        guiDrawTile2(anchor, (entry.tileIndex & 0xFE)+1,
+                    entry.attributes.xFlip, entry.attributes.yFlip,
+                    1+entry.attributes.palette, 1);
+        anchor.x += 12+FONTWIDTH;
+    }
+
+    anchor.y = viewAnchor.y;
+    size = guiDrawHexReg(anchor, {5, {{"PRI",1},{"YFLP",1},{"XFLP",1},{"PAL",1},{"RSVD",4},}}, entry.attributes.val);
+
+    anchor.x += size.x;
+    return (Vector2){anchor.x-viewAnchor.x, size.y};
 }
 
 Vector2 guiDrawDisplayTileMap(const Vector2 anchor, const uint8_t map)
@@ -1231,4 +1247,66 @@ Vector2 guiDrawDisplay(const Vector2 viewAnchor)
     anchor.y += size.y + GUI_PAD;
 
     return (Vector2){0,0};
+}
+
+const RegViewList displayRegView = {
+    13,
+    NULL,
+    {
+        { &regs.LCDC.val, "LCDC", "FF40", {8, {{"EN",1},{"wMAP",1},{"wEN",1},{"bTIL",1},{"bMAP",1},{"obSIZ",1},{"obEN",1},{"bwEN",1}}} },
+        { &regs.STAT.val, "STAT", "FF41", {7, {{"RSVD",1},{"lycIE",1},{"oamIE",1},{"vblIE",1},{"hblIE",1},{"lyEQ",1},{"MODE",2},}}},
+        { &regs.SCY.val,  "SCY",  "FF42", {1, {{"SCY", 8},}} },
+        { &regs.SCX.val,  "SCX",  "FF43", {1, {{"SCX", 8},}} },
+        { &regs.LY.val,   "LY",   "FF44", {1, {{"LY", 8},}} },
+        { &regs.LYC.val,  "LYC",  "FF45", {1, {{"LYC", 8},}} },
+        { &regs.OAM.val,  "OAM",  "FF46", {1, {{"OAM", 8},}} },
+        { &oamDmaOffset,  "oam", "state", {1, {{"offset", 8},}} },
+        { &regs.BGP.val,  "BGP",  "FF47", {4, {{"COL3",2},{"COL2",2},{"COL1",2},{"COL0",2},}}},
+        { &regs.OBP0.val, "OBP0", "FF48", {4, {{"COL3",2},{"COL2",2},{"COL1",2},{"COL0",2},}}},
+        { &regs.OBP1.val, "OBP1", "FF49", {4, {{"COL3",2},{"COL2",2},{"COL1",2},{"COL0",2},}}},
+        { &regs.WY.val,   "WY",   "FF4A", {1, {{"WY", 8},}} },
+        { &regs.WX.val,   "WX",   "FF4B", {1, {{"WX", 8},}} },
+    }
+};
+
+const RegViewList oamRegView = {
+    40,
+    guiDrawOamEntry,
+    {}
+};
+
+void displayInit(void)
+{
+    memset(&regs, 0, sizeof(regs));
+    frameCounter = 0;
+    scanlineCounter = 0;
+    totalFrames = 0;
+    activeStatFlags = 0;
+    memset(&vram, 0, sizeof(vram));
+    vramImage.size = 0x2000;
+    vramImage.contents = vram.contents;
+    addRamView(&vramImage, "VRAM", 0x8000);
+    guiUpdateScreen = false;
+    memset(&tileTextures, 0, sizeof(tileTextures));
+    // setup initial blank tile textures
+    for(int i=0; i<384; i++) {
+        tileTextures[i].image = GenImageColor(8*3, 8, BLANK);
+        tileTextures[i].tex = LoadTextureFromImage(tileTextures[i].image);
+    }
+    memset(screenData, 0, sizeof(screenData));
+    bgFetch.reset(true, false);
+    objFetch.reset(true);
+    oamImage.size = OAM_SIZE;
+    oamImage.contents = oamRam.contents;
+    addRamView(&oamImage, "OAM", 0xFE00);
+    oamDmaOffset = OAM_SIZE;
+    regs.OAM.val = 0xFF;    // reset value
+
+    addRegView(&displayRegView, "DISP");
+    addRegView(&oamRegView, "OAM");
+}
+
+void displayDeinit(void)
+{
+    // TODO: unload textures
 }
