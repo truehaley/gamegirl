@@ -24,6 +24,7 @@ uint8_t getGfxReg8(uint16_t addr);
 
 void ppuCycles(int dots);
 void oamDmaCycle(void);
+bool oamDmaActive(void);
 
 void setVram8(uint16_t addr, uint8_t val8);
 uint8_t getVram8(uint16_t addr);

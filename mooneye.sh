@@ -35,7 +35,7 @@ function run_test() {
 
 function run_acceptance() {
     echo "acceptance tests"
-    #run_test acceptance/add_sp_e_timing.gb         # FIXME
+    run_test acceptance/add_sp_e_timing.gb
     #run_test acceptance/boot_div-S.gb                      # SGB
     #run_test acceptance/boot_div-dmg0.gb                   # DMG0
     #run_test acceptance/boot_div-dmgABCmgb.gb      # FIXME
@@ -48,10 +48,10 @@ function run_acceptance() {
     #run_test acceptance/boot_regs-mgb.gb                   # MGB
     #run_test acceptance/boot_regs-sgb.gb                   # SGB
     #run_test acceptance/boot_regs-sgb2.gb                  # SGB
-    run_test acceptance/call_cc_timing.gb           # FIXME
-    run_test acceptance/call_cc_timing2.gb          # FIXME
-    run_test acceptance/call_timing.gb              # FIXME
-    run_test acceptance/call_timing2.gb             # FIXME
+    run_test acceptance/call_cc_timing.gb
+    run_test acceptance/call_cc_timing2.gb
+    run_test acceptance/call_timing.gb
+    run_test acceptance/call_timing2.gb
     run_test acceptance/di_timing-GS.gb
     run_test acceptance/div_timing.gb
     run_test acceptance/ei_sequence.gb
@@ -62,17 +62,17 @@ function run_acceptance() {
     run_test acceptance/halt_ime1_timing2-GS.gb
     run_test acceptance/if_ie_registers.gb
     run_test acceptance/intr_timing.gb
-    run_test acceptance/jp_cc_timing.gb             # FIXME
-    run_test acceptance/jp_timing.gb                # FIXME
-    run_test acceptance/ld_hl_sp_e_timing.gb        # FIXME
+    run_test acceptance/jp_cc_timing.gb
+    run_test acceptance/jp_timing.gb
+    run_test acceptance/ld_hl_sp_e_timing.gb
     run_test acceptance/pop_timing.gb
-    run_test acceptance/push_timing.gb              # FIXME
+    run_test acceptance/push_timing.gb
     run_test acceptance/rapid_di_ei.gb
-    run_test acceptance/ret_cc_timing.gb            # FIXME
-    run_test acceptance/ret_timing.gb               # FIXME
+    run_test acceptance/ret_cc_timing.gb
+    run_test acceptance/ret_timing.gb
     run_test acceptance/reti_intr_timing.gb
-    run_test acceptance/reti_timing.gb              # FIXME
-    run_test acceptance/rst_timing.gb               # FIXME
+    run_test acceptance/reti_timing.gb
+    run_test acceptance/rst_timing.gb
 
     #tmp/mts/acceptance/bits:
     run_test acceptance/bits/mem_oam.gb

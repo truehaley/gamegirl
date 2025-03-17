@@ -75,6 +75,7 @@ void cpuCycles(int cycles);
 
 // get/set just access the memory.  read/write trigger cpu cycles
 uint8_t getMem8(uint16_t addr);
+uint8_t getRawMem8(uint16_t addr);
 void setMem8(uint16_t addr, uint8_t val8);
 uint8_t readMem8(uint16_t addr);
 void writeMem8(uint16_t addr, uint8_t val8);

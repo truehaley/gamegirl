@@ -189,7 +189,8 @@ union {
 static RamImage oamImage;
 
 
-uint8_t oamDmaOffset = OAM_SIZE;
+static uint8_t oamDmaOffset = OAM_SIZE;
+static enum { IDLE, DELAY, START } oamDmaStart = IDLE;
 
 void setOam8(uint16_t addr, uint8_t val8)
 {
@@ -209,9 +210,20 @@ uint8_t getOam8(uint16_t addr)
 void oamDmaCycle(void)
 {
     if( OAM_SIZE > oamDmaOffset ) {
-        oamRam.contents[oamDmaOffset] = getMem8((regs.OAM.val << 8) + oamDmaOffset);
+        oamRam.contents[oamDmaOffset] = getRawMem8((regs.OAM.val << 8) + oamDmaOffset);
         oamDmaOffset++;
     }
+    if( START == oamDmaStart ) {
+        oamDmaStart = DELAY;
+    } else if( DELAY == oamDmaStart ) {
+        oamDmaStart = IDLE;
+        oamDmaOffset = 0;
+    }
+}
+
+bool oamDmaActive(void)
+{
+    return ( OAM_SIZE > oamDmaOffset );
 }
 
 void maybeTriggerStatInterrupt(uint8_t newFlag)
@@ -296,8 +308,8 @@ void setGfxReg8(uint16_t addr, const uint8_t val8)
             return;
         case REG_OAM_ADDR:
             regs.OAM.val = val8;
-            // kickoff the dma cycle by resetting the offset
-            oamDmaOffset = 0;
+            // kickoff the dma on the next clock cycle
+            oamDmaStart = START;
             return;
         case REG_BGP_ADDR:
             if( val8 != regs.BGP.val ) {

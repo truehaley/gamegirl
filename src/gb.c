@@ -1,7 +1,5 @@
 #include "gb.h"
-#include "cpu.h"
 #include "gui.h"
-#include "timer.h"
 
 unsigned int mainClock = 0;
 
@@ -215,7 +213,8 @@ IoRegDispatchFuncs ioRegDispatch[0x78] = {
 //FF80	FFFE	High RAM (HRAM)
 //FFFF	FFFF	Interrupt Enable register (IE)
 
-uint8_t getMem8(uint16_t addr)
+// Raw version has no bus conflicts
+uint8_t getRawMem8(uint16_t addr)
 {
     if(addr < 0x00100 && bootRomActive) {
         return bootrom.contents[addr];
@@ -271,7 +270,16 @@ uint8_t getMem8(uint16_t addr)
     }
 }
 
-void setMem8(uint16_t addr, uint8_t val8)
+uint8_t getMem8(uint16_t addr)
+{
+    if( addr >= 0xFE00 && addr <= 0xFE9F) {
+        return (oamDmaActive())? 0xFF : getOam8(addr - 0xFE00);
+    } else {
+       return getRawMem8(addr);
+    }
+}
+
+void setRawMem8(uint16_t addr, uint8_t val8)
 {
     if( addr <= 0x7FFF ) {
         // ROM Bank 0-n
@@ -319,17 +327,24 @@ void setMem8(uint16_t addr, uint8_t val8)
     }
 }
 
+void setMem8(uint16_t addr, uint8_t val8)
+{
+    if( !oamDmaActive()) {
+        setRawMem8(addr, val8);
+    }
+}
+
 uint8_t readMem8(uint16_t addr)
 {
     uint8_t val8 = getMem8(addr);
-    cpuCycles(1);
+    cpuCycle();
     return val8;
 }
 
 void writeMem8(uint16_t addr, uint8_t val8)
 {
     setMem8(addr, val8);
-    cpuCycles(1);
+    cpuCycle();
 }
 
 uint16_t readMem16(uint16_t addr)
