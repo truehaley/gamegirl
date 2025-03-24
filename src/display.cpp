@@ -650,7 +650,10 @@ public:
 } objFetch;
 
 #define MAX_OBJECTS_PER_LINE    (10)
-OamEntry scanlineObjects[MAX_OBJECTS_PER_LINE];
+struct {
+    uint8_t oamIndex;
+    OamEntry object;
+} scanlineObjects[MAX_OBJECTS_PER_LINE];
 
 void ppuCycles(int cycles)
 {
@@ -688,7 +691,9 @@ void ppuCycles(int cycles)
                         if( ((regs.LY.val + 16) >= object->yPos)
                         &&  ((regs.LY.val + 16) < (object->yPos + ((0 == regs.LCDC.objSize)? 8 : 16)))
                         &&  (MAX_OBJECTS_PER_LINE > foundObjects) ) {
-                            scanlineObjects[foundObjects++] = *object;
+                            scanlineObjects[foundObjects].object = *object;
+                            scanlineObjects[foundObjects].oamIndex = (scanlineCounter >> 1);
+                            foundObjects++;
                         }
                     }
 
@@ -707,27 +712,31 @@ void ppuCycles(int cycles)
                 case MODE_DRAW:
 
                     if( nullptr == objInProcess ) {
-                        // check
+                        // check if we've reached the location of an object
+                        // This search loop ensures the object found first in OAM memory always wins
+                        //  even if a later object would have a matching x value
                         for(int i=0; i<foundObjects; i++) {
-                            if( xCoordinate + 8 >= scanlineObjects[i].xPos ) {
-                                objInProcess = &scanlineObjects[i];
-                                //bgFetch.reset(false, false);
+                            if( xCoordinate + 8 >= scanlineObjects[i].object.xPos ) {
+                                objInProcess = &scanlineObjects[i].object;
+                                // some references suggest resetting the background fetcher here,
+                                //   but that then exceeds proper line timing
                                 objFetch.reset(false);
                                 objFetch.cycle(objInProcess);
                                 break;
                             }
                         }
                     } else {
-                        // object fetching takes precedence
+                        // object fetching takes precedence over everything else
                         if( true == objFetch.cycle(objInProcess) ) {
                             // this object fetch is complete
                             // set the x val really high so it isn't processed again
                             objInProcess->xPos = 0xFF;
                             objInProcess = nullptr;
+                            break;
                         }
-                        break;
                     }
                     if(nullptr != objInProcess) {
+                        // if we're still working on fetching an object, skip everything else
                         break;
                     }
 
@@ -1009,15 +1018,34 @@ Vector2 guiDrawDisplayObjects(const Vector2 anchor)
 
 Vector2 guiDrawOamEntry(const Vector2 viewAnchor, int index)
 {
-    OamEntry entry = oamRam.entries[index];
+    OamEntry entry;
     Vector2 anchor = viewAnchor;
 
+    if(index < OAM_ENTRIES) {
+        entry = oamRam.entries[index];
+    } else if( OAM_ENTRIES == index ) {
+        // Divide the two categories
+        Color color = GetColor(GuiGetStyle(DEFAULT, LINE_COLOR));
+        anchor.x += 10;
+        DrawRectangle(anchor.x, viewAnchor.y+16, 50, 1, color);
+        anchor.x += 50 + 10;
+        DrawText("SCANLINE OBJECTS", anchor.x ,viewAnchor.y+12, 10, color);
+        anchor.x += 120;
+        DrawRectangle(anchor.x, viewAnchor.y+16, 50, 1, color);
+        anchor.x += 50;
+        return (Vector2){anchor.x-viewAnchor.x, 36};
+    } else {
+        index -= (OAM_ENTRIES + 1);
+        entry = scanlineObjects[index].object;
+        index = scanlineObjects[index].oamIndex;
+    }
+
     anchor.x += 1;
-    anchor.y += FONTSIZE*0.7f;
+    anchor.y += FONTSIZE*0.7f+2;
     DrawTextEx(firaFont, TextFormat("%02X", index), anchor, FONTSIZE, 0, BLACK);
 
     anchor.x += FONTWIDTH*3;
-    anchor.y = viewAnchor.y;
+    anchor.y = viewAnchor.y+2;
     Vector2 size = guiDrawRegField(anchor, 2, "X", TextFormat("%02X", entry.xPos));
 
     anchor.x += size.x+FONTWIDTH;
@@ -1035,17 +1063,16 @@ Vector2 guiDrawOamEntry(const Vector2 viewAnchor, int index)
                     1+entry.attributes.palette, 2);
         anchor.x += 16+FONTWIDTH;
     } else {
-        anchor.x += 4;
-        anchor.y = viewAnchor.y+6;
-        DrawRectangleV(anchor, (Vector2){8,2*8}, paletteColor[regs.BGP.palCol0]);
+        anchor.y = viewAnchor.y;
+        DrawRectangleV(anchor, (Vector2){2*8,2*2*8}, paletteColor[regs.BGP.palCol0]);
         guiDrawTile2(anchor, (entry.tileIndex & 0xFE),
                     entry.attributes.xFlip, entry.attributes.yFlip,
-                    1+entry.attributes.palette, 1);
-        anchor.y += 8;
+                    1+entry.attributes.palette, 2);
+        anchor.y += 16;
         guiDrawTile2(anchor, (entry.tileIndex & 0xFE)+1,
                     entry.attributes.xFlip, entry.attributes.yFlip,
-                    1+entry.attributes.palette, 1);
-        anchor.x += 12+FONTWIDTH;
+                    1+entry.attributes.palette, 2);
+        anchor.x += 16+FONTWIDTH;
     }
 
     anchor.y = viewAnchor.y;
@@ -1264,6 +1291,7 @@ Vector2 guiDrawDisplay(const Vector2 viewAnchor)
 const RegViewList displayRegView = {
     13,
     NULL,
+    REGVIEW_DEFAULT_LINEHEIGHT,
     {
         { &regs.LCDC.val, "LCDC", "FF40", {8, {{"EN",1},{"wMAP",1},{"wEN",1},{"bTIL",1},{"bMAP",1},{"obSIZ",1},{"obEN",1},{"bwEN",1}}} },
         { &regs.STAT.val, "STAT", "FF41", {7, {{"RSVD",1},{"lycIE",1},{"oamIE",1},{"vblIE",1},{"hblIE",1},{"lyEQ",1},{"MODE",2},}}},
@@ -1282,8 +1310,9 @@ const RegViewList displayRegView = {
 };
 
 const RegViewList oamRegView = {
-    40,
+    OAM_ENTRIES + 1 + MAX_OBJECTS_PER_LINE,
     guiDrawOamEntry,
+    36,
     {}
 };
 

@@ -46,6 +46,7 @@ typedef struct {
 typedef struct {
     int regCount;
     Vector2 (* guiDrawCustomRegLine)(const Vector2 viewAnchor, int index);
+    float lineHeight;
     RegView regs[];
 } RegViewList;
 

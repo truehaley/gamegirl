@@ -367,6 +367,7 @@ const RegViewList displayRegView = {
 };
 */
 
+// Draws an individual field of a register
 Vector2 guiDrawRegField(const Vector2 anchor, float minCharWidth, const char *label, const char *content)
 {
     float labelWidth = MeasureText(label, 10);
@@ -385,7 +386,7 @@ Vector2 guiDrawRegField(const Vector2 anchor, float minCharWidth, const char *la
     return (Vector2){bounds.width, bounds.height};
 }
 
-
+// Draws all the fields of a register
 Vector2 guiDrawHexReg(const Vector2 viewAnchor, const RegViewFields regFields, int value)
 {
     Vector2 anchor = viewAnchor;
@@ -406,6 +407,7 @@ Vector2 guiDrawHexReg(const Vector2 viewAnchor, const RegViewFields regFields, i
     return (Vector2){anchor.x - viewAnchor.x, size.y};
 }
 
+// Draws a line representing a register's name, its offset, and all of its fields
 Vector2 guiDrawHexRegLine(const Vector2 viewAnchor, RegView regv)
 {
     Vector2 anchor = viewAnchor;
@@ -429,13 +431,13 @@ Vector2 guiDrawHexRegLine(const Vector2 viewAnchor, RegView regv)
 Vector2 guiDrawRegView(const Vector2 viewAnchor)
 {
     static int selectedView = 0;
-
     GuiToggleGroup(ANCHOR_RECT(viewAnchor, 0, 0, 50, 20), regViewNames, &selectedView);
+    const RegViewList *currentView = regView[selectedView].view;
 
     Rectangle contentSize = {
         0, 0,
         480-(float)GuiGetStyle(LISTVIEW, SCROLLBAR_WIDTH)-2*GuiGetStyle(DEFAULT, BORDER_WIDTH),
-        regView[selectedView].view->regCount*FONTSIZE*2 +PADDING*2.0f
+        currentView->regCount*currentView->lineHeight +PADDING*2.0f
     };
 
     Rectangle viewPort;
@@ -443,19 +445,17 @@ Vector2 guiDrawRegView(const Vector2 viewAnchor)
                     NULL, contentSize, &regView[selectedView].scrollPosition, &viewPort);
 
     int scrollY = floor(regView[selectedView].scrollPosition.y);
-    int startView = -(scrollY/(FONTSIZE*2));
-    float scrollOffset = scrollY % ((int)(FONTSIZE*2));
-
-    //DrawText(TextFormat("[%f, %d, %d]", memView[selectedView].scrollPosition.y, scrollY, startLine), 4, 4, 20, RED);
+    int startView = -(scrollY/currentView->lineHeight);
+    float scrollOffset = scrollY % ((int)(currentView->lineHeight));
 
     BeginScissorMode(viewPort.x, viewPort.y, viewPort.width, viewPort.height);
         for( int viewRow = 0 ; viewRow < 16+1; viewRow++ ) {
-            Vector2 lineAnchor = {viewAnchor.x+PADDING, viewPort.y+PADDING+scrollOffset+viewRow*FONTSIZE*2};
-            if( startView + viewRow < regView[selectedView].view->regCount ) {
-                if( NULL != regView[selectedView].view->guiDrawCustomRegLine ) {
-                    regView[selectedView].view->guiDrawCustomRegLine(lineAnchor, startView+viewRow);
+            Vector2 lineAnchor = {viewAnchor.x+PADDING, viewPort.y+PADDING+scrollOffset+viewRow*currentView->lineHeight};
+            if( startView + viewRow < currentView->regCount ) {
+                if( NULL != currentView->guiDrawCustomRegLine ) {
+                    currentView->guiDrawCustomRegLine(lineAnchor, startView+viewRow);
                 } else {
-                    RegView regv = regView[selectedView].view->regs[startView+viewRow];
+                    RegView regv = currentView->regs[startView+viewRow];
                     guiDrawHexRegLine(lineAnchor, regv);
                 }
             }

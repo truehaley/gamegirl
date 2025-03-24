@@ -35,6 +35,8 @@ extern "C" {
 #define ROM_SET_ENDCODE(rom, offset)            do { rom->contentFlags[offset] = (rom->contentFlags[offset] | ROM_ENDCODE_MASK); } while(0)
 #define ROM_SET_JUMPDEST(rom, offset)           do { rom->contentFlags[offset] = (rom->contentFlags[offset] | ROM_JUMPDEST_MASK); } while(0)
 
+#define REGVIEW_DEFAULT_LINEHEIGHT (FONTSIZE*2.0)
+
 typedef enum {
     NO_VIEW = 0,
     MEM_VIEW,  // as seen by CPU
