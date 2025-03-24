@@ -635,7 +635,7 @@ public:
                 fifo.hBits |= ((tileInfo.hBits << (8-tileInfo.visible)) & emptyBits);
                 fifo.pal = (fifo.pal & ~emptyBits) | (((0 == object->attributes.palette)? 0x00 : 0xFF) & emptyBits);
                 fifo.pri = (fifo.pri & ~emptyBits) | (((0 == object->attributes.priority)? 0x00 : 0xFF) & emptyBits);
-                fifo.depth = tileInfo.visible;
+                fifo.depth = MAX(tileInfo.visible, fifo.depth);
                 state = FIFO_PUSH_2;
                 break;
             }
