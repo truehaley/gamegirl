@@ -35,6 +35,7 @@ void gbInit(const char * const cartFilename)
     serialInit();
     timerInit();
     displayInit();
+    audioInit();
 
     allocateRam(&wram, 8192);
     addRamView(&wram, "WRAM", 0xC000);
@@ -48,6 +49,7 @@ void gbDeinit(void)
     unloadCartridge();
     deallocateRam(&wram);
     displayDeinit();
+    audioDeinit();
 }
 
 void cpuCycle(void)
@@ -88,30 +90,30 @@ IoRegDispatchFuncs ioRegDispatch[0x78] = {
     { NULL, NULL }, // FF0E
     { getIntReg8, setIntReg8 }, // FF0F IF
 
-    { NULL, NULL }, // FF10
-    { NULL, NULL }, // FF11
-    { NULL, NULL }, // FF12
-    { NULL, NULL }, // FF13
-    { NULL, NULL }, // FF14
+    { getAudioReg8, setAudioReg8 }, // FF10 AUD CH1 SWEEP
+    { getAudioReg8, setAudioReg8 }, // FF11 AUD CH1 TIMER
+    { getAudioReg8, setAudioReg8 }, // FF12 AUD CH1 ENVLP
+    { getAudioReg8, setAudioReg8 }, // FF13 AUD CH1 LPER
+    { getAudioReg8, setAudioReg8 }, // FF14 AUD CH1 CTRL
     { NULL, NULL }, // FF15
-    { NULL, NULL }, // FF16
-    { NULL, NULL }, // FF17
-    { NULL, NULL }, // FF18
-    { NULL, NULL }, // FF19
-    { NULL, NULL }, // FF1A
-    { NULL, NULL }, // FF1B
-    { NULL, NULL }, // FF1C
-    { NULL, NULL }, // FF1D
-    { NULL, NULL }, // FF1E
+    { getAudioReg8, setAudioReg8 }, // FF16 AUD CH2 TIMER
+    { getAudioReg8, setAudioReg8 }, // FF17 AUD CH2 ENVLP
+    { getAudioReg8, setAudioReg8 }, // FF18 AUD CH2 LPER
+    { getAudioReg8, setAudioReg8 }, // FF19 AUD CH2 CTRL
+    { getAudioReg8, setAudioReg8 }, // FF1A AUD CH3 DAC
+    { getAudioReg8, setAudioReg8 }, // FF1B AUD CH3 TIMER
+    { getAudioReg8, setAudioReg8 }, // FF1C AUD CH3 ENVLP
+    { getAudioReg8, setAudioReg8 }, // FF1D AUD CH3 LPER
+    { getAudioReg8, setAudioReg8 }, // FF1E AUD CH3 CTRL
     { NULL, NULL }, // FF1F
 
-    { NULL, NULL }, // FF20
-    { NULL, NULL }, // FF21
-    { NULL, NULL }, // FF22
-    { NULL, NULL }, // FF23
-    { NULL, NULL }, // FF24
-    { NULL, NULL }, // FF25
-    { NULL, NULL }, // FF26
+    { getAudioReg8, setAudioReg8 }, // FF20 AUD CH4 TIMER
+    { getAudioReg8, setAudioReg8 }, // FF21 AUD CH4 ENVLP
+    { getAudioReg8, setAudioReg8 }, // FF22 AUD CH4 LFSR
+    { getAudioReg8, setAudioReg8 }, // FF23 AUD CH4 CTRL
+    { getAudioReg8, setAudioReg8 }, // FF24 AUD MAST VOL
+    { getAudioReg8, setAudioReg8 }, // FF25 AUD MAST PAN
+    { getAudioReg8, setAudioReg8 }, // FF26 AUD MAST CTRL
     { NULL, NULL }, // FF27
     { NULL, NULL }, // FF28
     { NULL, NULL }, // FF29
@@ -122,22 +124,22 @@ IoRegDispatchFuncs ioRegDispatch[0x78] = {
     { NULL, NULL }, // FF2E
     { NULL, NULL }, // FF2F
 
-    { NULL, NULL }, // FF30
-    { NULL, NULL }, // FF31
-    { NULL, NULL }, // FF32
-    { NULL, NULL }, // FF33
-    { NULL, NULL }, // FF34
-    { NULL, NULL }, // FF35
-    { NULL, NULL }, // FF36
-    { NULL, NULL }, // FF37
-    { NULL, NULL }, // FF38
-    { NULL, NULL }, // FF39
-    { NULL, NULL }, // FF3A
-    { NULL, NULL }, // FF3B
-    { NULL, NULL }, // FF3C
-    { NULL, NULL }, // FF3D
-    { NULL, NULL }, // FF3E
-    { NULL, NULL }, // FF3F
+    { getAudioReg8, setAudioReg8 }, // FF30 AUD WAV0
+    { getAudioReg8, setAudioReg8 }, // FF31 AUD WAV1
+    { getAudioReg8, setAudioReg8 }, // FF32 AUD WAV2
+    { getAudioReg8, setAudioReg8 }, // FF33 AUD WAV3
+    { getAudioReg8, setAudioReg8 }, // FF34 AUD WAV4
+    { getAudioReg8, setAudioReg8 }, // FF35 AUD WAV5
+    { getAudioReg8, setAudioReg8 }, // FF36 AUD WAV6
+    { getAudioReg8, setAudioReg8 }, // FF37 AUD WAV7
+    { getAudioReg8, setAudioReg8 }, // FF38 AUD WAV8
+    { getAudioReg8, setAudioReg8 }, // FF39 AUD WAV9
+    { getAudioReg8, setAudioReg8 }, // FF3A AUD WAVA
+    { getAudioReg8, setAudioReg8 }, // FF3B AUD WAVB
+    { getAudioReg8, setAudioReg8 }, // FF3C AUD WAVC
+    { getAudioReg8, setAudioReg8 }, // FF3D AUD WAVD
+    { getAudioReg8, setAudioReg8 }, // FF3E AUD WAVE
+    { getAudioReg8, setAudioReg8 }, // FF3F AUD WAVF
 
     { getGfxReg8, setGfxReg8 }, // FF40 Gfx LCDC
     { getGfxReg8, setGfxReg8 }, // FF41 Gfx STAT

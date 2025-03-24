@@ -17,6 +17,7 @@
 #include "timer.h"
 #include "display.h"
 #include "controls.h"
+#include "audio.h"
 
 
 #ifdef __cplusplus
@@ -47,6 +48,46 @@ extern bool bootRomActive;
 #define REG_TAC_ADDR    (0xFF07)
 // Interrupt Regs
 #define REG_IF_ADDR     (0xFF0F)
+
+#define REG_AUD_CH1_SWEEP (0xFF10)
+#define REG_AUD_CH1_TIMER (0xFF11)
+#define REG_AUD_CH1_ENVLP (0xFF12)
+#define REG_AUD_CH1_LPER  (0xFF13)
+#define REG_AUD_CH1_CTRL  (0xFF14)
+#define REG_AUD_CH2_TIMER (0xFF16)
+#define REG_AUD_CH2_ENVLP (0xFF17)
+#define REG_AUD_CH2_LPER  (0xFF18)
+#define REG_AUD_CH2_CTRL  (0xFF19)
+#define REG_AUD_CH3_DAC   (0xFF1A)
+#define REG_AUD_CH3_TIMER (0xFF1B)
+#define REG_AUD_CH3_ENVLP (0xFF1C)
+#define REG_AUD_CH3_LPER  (0xFF1D)
+#define REG_AUD_CH3_CTRL  (0xFF1E)
+#define REG_AUD_CH4_TIMER (0xFF20)
+#define REG_AUD_CH4_ENVLP (0xFF21)
+#define REG_AUD_CH4_LFSR  (0xFF22)
+#define REG_AUD_CH4_CTRL  (0xFF23)
+#define REG_AUD_MAST_VOL  (0xFF24)
+#define REG_AUD_MAST_PAN  (0xFF25)
+#define REG_AUD_MAST_CTRL (0xFF26)
+#define REG_AUD_CH3_WAV0  (0xFF30)
+#define REG_AUD_CH3_WAV1  (0xFF31)
+#define REG_AUD_CH3_WAV2  (0xFF32)
+#define REG_AUD_CH3_WAV3  (0xFF33)
+#define REG_AUD_CH3_WAV4  (0xFF34)
+#define REG_AUD_CH3_WAV5  (0xFF35)
+#define REG_AUD_CH3_WAV6  (0xFF36)
+#define REG_AUD_CH3_WAV7  (0xFF37)
+#define REG_AUD_CH3_WAV8  (0xFF38)
+#define REG_AUD_CH3_WAV9  (0xFF39)
+#define REG_AUD_CH3_WAVA  (0xFF3A)
+#define REG_AUD_CH3_WAVB  (0xFF3B)
+#define REG_AUD_CH3_WAVC  (0xFF3C)
+#define REG_AUD_CH3_WAVD  (0xFF3D)
+#define REG_AUD_CH3_WAVE  (0xFF3E)
+#define REG_AUD_CH3_WAVF  (0xFF3F)
+
+
 // LCD REGS
 #define REG_LCDC_ADDR   (0xFF40)
 #define REG_STAT_ADDR   (0xFF41)

@@ -413,19 +413,32 @@ Vector2 guiDrawHexRegLine(const Vector2 viewAnchor, RegView regv)
     Vector2 anchor = viewAnchor;
     Vector2 size;
 
-    // line header
-    anchor.x += 1;
-    anchor.y += FONTSIZE*0.7f;
-    DrawTextEx(firaFont, TextFormat("%s", regv.offset),  anchor, FONTSIZE, 0, BLACK);
-    anchor.x += FONTWIDTH*6;
-    DrawTextEx(firaFont, TextFormat("%5s", regv.name),  anchor, FONTSIZE, 0, BLACK);
+    if( NULL == regv.value) {
+        // Draw dividing text instead of register
+        Color color = GetColor(GuiGetStyle(DEFAULT, LINE_COLOR));
+        anchor.x += 10;
+        DrawRectangle(anchor.x, viewAnchor.y+16, 50, 1, color);
+        anchor.x += 50 + 10;
+        DrawText(regv.name, anchor.x ,viewAnchor.y+12, 10, color);
+        anchor.x += MeasureText(regv.name, 10) + 10;
+        DrawRectangle(anchor.x, viewAnchor.y+16, 50, 1, color);
+        anchor.x += 50;
+    } else {
+        // Draw normal register
+        // line header
+        anchor.x += 1;
+        anchor.y += FONTSIZE*0.7f;
+        DrawTextEx(firaFont, TextFormat("%s", regv.offset),  anchor, FONTSIZE, 0, BLACK);
+        anchor.x += FONTWIDTH*6;
+        DrawTextEx(firaFont, TextFormat("%5s", regv.name),  anchor, FONTSIZE, 0, BLACK);
 
-    anchor.x += (FONTWIDTH*6);
-    anchor.y = viewAnchor.y;
-    size = guiDrawHexReg(anchor, regv.fields, *regv.value);
+        anchor.x += (FONTWIDTH*6);
+        anchor.y = viewAnchor.y;
+        size = guiDrawHexReg(anchor, regv.fields, *regv.value);
 
-    anchor.x += size.x;
-    return (Vector2){viewAnchor.x - anchor.x, size.y};
+        anchor.x += size.x;
+    }
+    return (Vector2){viewAnchor.x - anchor.x, REGVIEW_DEFAULT_LINEHEIGHT};
 }
 
 Vector2 guiDrawRegView(const Vector2 viewAnchor)
