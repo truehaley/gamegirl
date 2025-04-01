@@ -5,28 +5,16 @@ A GameBoy Emulator, implemented for fun
 ## Requires
 
 * argp-standalone (`brew install argp-standalone`)
-
+* premake5 (`brew install premake`)
 
 
 # MacOS Users
-* CD into the build folder
-* run `./premake5.osx gmake2`
-* CD back to the root
-* run `make`
+* Install dependencies (see above)
+* In project root:
+    * run `./premake.sh`
+    * run `make`
 * you are good to go
-
-## Microsoft Visual Studio
-* Run `build-VisualStudio2022.bat`
-* double click the `.sln` file that is generated
-* develop your game
-* you are good to go
-
-# Linux Users
-* CD into the build folder
-* run `./premake5 gmake2`
-* CD back to the root
-* run `make`
-* you are good to go
+    * run `bin/Debug/gamegirl <romfile>`
 
 
 # Output files
