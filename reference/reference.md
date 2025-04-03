@@ -10,9 +10,10 @@
 
 ## Reference Links
 
+- [Pan Docs Details!](https://gbdev.io/pandocs/)
+- [GBEDG (The Gameboy Emulayor Development Guide](https://hacktix.github.io/GBEDG/)
 - [Gameboy Development Community](https://gbdev.io/resources.html)
 - [github based links](https://github.com/gbdev/awesome-gbdev)
-- [Pan Docs Details!](https://gbdev.io/pandocs/)
 - [CPU Instruction Set](https://gbdev.io/pandocs/CPU_Instruction_Set.html)
 - [Nice Opcode Table](https://gbdev.io/gb-opcodes/optables/)
 - [Differences from Z90](http://www.z80.info/z80gboy.txt)

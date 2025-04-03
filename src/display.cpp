@@ -1,7 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2025 Haley Taylor (@truehaley)
+
 #include "gb.h"
 #include "gui.h"
 
-// Set at the beginning of vblank so the gui will redraw the screen
+// Setting this will cause the execution loop to redraw the gui & screen
+// Most often set at the beginning of vblank
 bool guiUpdateScreen = false;
 
 typedef struct {
@@ -10,12 +17,6 @@ typedef struct {
         uint8_t hBits;
     } line[8];
 } Tile;
-
-typedef struct {
-    Image image;
-    Texture2D tex;
-    bool dirty;
-} TileTex;
 
 struct {
     union{
@@ -29,7 +30,11 @@ struct {
     };
 } vram;
 
-TileTex tileTextures[384];
+struct {
+    Image image;
+    Texture2D tex;
+    bool dirty;
+} tileTextures[384];
 
 static RamImage vramImage;
 
@@ -81,38 +86,36 @@ struct {
         uint8_t val;
     } SCY;   // FF42
 
-    struct {
-        union {
-            uint8_t val;
-            struct {
-                uint8_t ppuMode:2;
-                uint8_t lycMatch:1;
-                uint8_t hblankInt0Enable:1;
-                uint8_t vblankInt1Enable:1;
-                uint8_t oamInt2Enable:1;
-                uint8_t lycIntEnable:1;
-                uint8_t reserved:1;
-            };
+
+    union {
+        uint8_t val;
+        struct {
+            uint8_t ppuMode:2;
+            uint8_t lycMatch:1;
+            uint8_t hblankInt0Enable:1;
+            uint8_t vblankInt1Enable:1;
+            uint8_t oamInt2Enable:1;
+            uint8_t lycIntEnable:1;
+            uint8_t reserved:1;
         };
     } STAT; // FF41
 
-    struct {
-        union {
-            uint8_t val;
-            struct {
-                uint8_t bgWinEnable:1;      // 0 = Off; 1 = On
-                uint8_t objEnable:1;        // 0 = Off; 1 = On
-                uint8_t objSize:1;          // 0 = 8×8; 1 = 8×16
-                uint8_t bgTileMap:1;        // 0 = 9800–9BFF; 1 = 9C00–9FFF
-                uint8_t bgWinTileData:1;    // 0 = 8800–97FF (signed); 1 = 8000–8FFF (unsigned)
-                uint8_t windowEnable:1;     // 0 = Off; 1 = On
-                uint8_t windowTileMap:1;    // 0 = 9800–9BFF; 1 = 9C00–9FFF
-                uint8_t displayEnable:1;   // 0 = Off; 1 = On
-            };
+    union {
+        uint8_t val;
+        struct {
+            uint8_t bgWinEnable:1;      // 0 = Off; 1 = On
+            uint8_t objEnable:1;        // 0 = Off; 1 = On
+            uint8_t objSize:1;          // 0 = 8×8; 1 = 8×16
+            uint8_t bgTileMap:1;        // 0 = 9800–9BFF; 1 = 9C00–9FFF
+            uint8_t bgWinTileData:1;    // 0 = 8800–97FF (signed); 1 = 8000–8FFF (unsigned)
+            uint8_t windowEnable:1;     // 0 = Off; 1 = On
+            uint8_t windowTileMap:1;    // 0 = 9800–9BFF; 1 = 9C00–9FFF
+            uint8_t displayEnable:1;   // 0 = Off; 1 = On
         };
     } LCDC;  // FF40
 } regs;
 
+// The actual contents of the screen
 int screenData[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 #define INT_STAT_HBLANK (0x08)
@@ -865,6 +868,7 @@ void ppuCycles(int cycles)
     }
 }
 
+// Generic greyscalePalette
 static const Color paletteColor[4] = {
     WHITE,
     LIGHTGRAY,

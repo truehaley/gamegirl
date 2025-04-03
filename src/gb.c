@@ -1,5 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2025 Haley Taylor (@truehaley)
+
 #include "gb.h"
-#include "gui.h"
 
 unsigned int mainClock = 0;
 
@@ -203,7 +208,7 @@ IoRegDispatchFuncs ioRegDispatch[0x78] = {
 };
 
 //0000	3FFF	16 KiB ROM bank 00	From cartridge, usually a fixed bank
-//4000	7FFF	16 KiB ROM Bank 01–NN	From cartridxge, switchable bank via mapper (if any)
+//4000	7FFF	16 KiB ROM Bank 01–NN	From cartridge, switchable bank via mapper (if any)
 //8000	9FFF	8 KiB Video RAM (VRAM)	In CGB mode, switchable bank 0/1
 //A000	BFFF	8 KiB External RAM	From cartridge, switchable bank if any
 //C000	CFFF	4 KiB Work RAM (WRAM)

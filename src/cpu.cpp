@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2025 Haley Taylor (@truehaley)
+
 #include "gb.h"
 #include "gui.h"
 
@@ -138,8 +144,6 @@ static void guiDrawCpuReg16(Vector2 anchor, uint16_t val16, const char * const n
     anchor.y += FONTSIZE/3;
     DrawTextEx(firaFont, TextFormat("%04X", val16),  anchor, FONTSIZE, 0, BLACK);
 }
-
-extern RomImage bootrom; // TODO get rid of this
 
 int guiDisassembleDetail(char * const buffer, InstructionDetail *id)
 {

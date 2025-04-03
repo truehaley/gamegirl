@@ -1,5 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) 2025 Haley Taylor (@truehaley)
+
 #ifndef __GB_TYPES_H__
 #define __GB_TYPES_H__
+// IWYU pragma: always_keep
 
 #include <stdint.h>
 #include <stdbool.h>
