@@ -72,8 +72,6 @@ void guiInit(void)
     SetWindowMinSize(1080 + 274, 900);
     SetTargetFPS(60);
 
-    // Load a texture from the resources directory
-    //Texture wabbit = LoadTexture("Resources/wabbit_alpha.png");
     firaFont = LoadFontEx("resources/Fonts/FiraMono/FiraMonoNerdFont-Regular.otf", FONTSIZE, 0, 250);
 }
 
