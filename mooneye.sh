@@ -1,5 +1,5 @@
 #!/bin/bash
-TEST_ROOT="tmp/mts"
+TEST_ROOT="external/mooneye"
 currentTest=0
 
 if [ $# -eq 1 ]; then
@@ -17,7 +17,7 @@ function run_test() {
         return
     fi
     echo "running test $currentTest: $1"
-    output=$(bin/Debug/gamegirl "$TEST_ROOT/$1" --mooneye --run --fastboot --exitbreak 2>&1)
+    output=$(build/gamegirl "$TEST_ROOT/$1" --mooneye --run --fastboot --exitbreak 2>&1)
     if [ $? -ne 42 ]; then
         echo "FAILED!"
         echo "Output from command:"
@@ -25,7 +25,7 @@ function run_test() {
         echo "$output"
         echo "==========================================================="
         echo "Execute this command to re-run:"
-        echo "    bin/Debug/gamegirl $TEST_ROOT/$1"
+        echo "    build/gamegirl $TEST_ROOT/$1"
         echo "Execute this command to continue:"
         ((nextTest=currentTest+1))
         echo "    $0 $nextTest"

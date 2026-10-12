@@ -149,18 +149,18 @@ int guiDisassembleDetail(char * const buffer, InstructionDetail *id)
 {
     char * buff = buffer;
 
-    buff = buff + sprintf(buff, "%04X | ", id->addr);
+    buff = buff + snprintf(buff, 8, "%04X | ", id->addr);
     int bytesPerInst = instructionSize(id->code[0]);
     for(int index = 0; index < 3; index++) {
         if (index < bytesPerInst) {
-            buff = buff + sprintf(buff, "%02X ", id->code[index]);
+            buff = buff + snprintf(buff, 4, "%02X ", id->code[index]);
         } else {
-            buff = buff + sprintf(buff,"   ");
+            buff = buff + snprintf(buff, 4, "   ");
         }
     }
-    buff = buff + sprintf(buff, "|  ");
+    buff = buff + snprintf(buff, 4, "|  ");
     buff = buff + disassemble2(buff, id->code, id->addr);
-    buff = buff + sprintf(buff, "\n");
+    buff = buff + snprintf(buff, 2, "\n");
     return buff - buffer;
 }
 
@@ -204,7 +204,7 @@ Vector2 guiDrawCpuState(const Vector2 viewAnchor)
         buff = buff + guiDisassembleDetail(buff, &instructionHistory[historyOffset]);
         historyOffset = (historyOffset + 1) & 0x7;
     } while( ++lines < 7 );
-    buff = buff + sprintf(buff, "\n");
+    buff = buff + snprintf(buff, 2, "\n");
 
     // Upcoming instructions
     do {

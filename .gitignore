@@ -1,8 +1,6 @@
 .DS_Store
 .cache/
-build/external
-build/build_files
-bin/
-Makefile
+external/
+build/
 compile_commands.json
 tmp/

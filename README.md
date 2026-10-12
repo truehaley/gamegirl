@@ -15,16 +15,16 @@ A GameBoy Emulator, implemented for fun.
 
 ## Requires
 * argp-standalone (`brew install argp-standalone`)
-* premake5 (`brew install premake`)
+* cmake
 
 ## Building
 * Install dependencies (see above)
 * In project root:
-    * run `./premake.sh`  (This will download external dependencies and generate makefiles)
-    * run `make`
+    * run `make cmake`  (This will download external dependencies and prepare build)
+    * run `make build`
 * you are good to go
-    * run `bin/Debug/gamegirl <romfile>`
-    * run `bin/Debug/gamegirl --help` for more options
+    * run `build/gamegirl <romfile>`
+    * run `build/gamegirl --help` for more options
 
 ## Testing
 * Passes majority of the [Blargg test roms](https://github.com/retrio/gb-test-roms) and [MoonEye Test Suite](https://github.com/Gekkio/mooneye-test-suite)
